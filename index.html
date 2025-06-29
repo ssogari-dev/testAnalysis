@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <title>성적 분석 사이트</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 검색봇 차단 메타 태그 -->
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta name="bingbot" content="noindex, nofollow">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,6 +15,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
 </head>
 <body>
+  <!-- 정보 버튼 -->
+  <button id="infoButton" style="position:fixed; top:10px; right:10px; width:80px; height:30px; border-radius:10px; border:none; background:#00000080; color:#fff; font-weight:bold; cursor:pointer; z-index:9999;">ⓘ 안내 / 문의</button>
+  
+  <!-- 정보 팝업 -->
+  <div id="infoPopup" style="display:none; position:fixed; top:50px; right:10px; width:320px; background:#fff; border:1px solid #ccc; border-radius:8px; padding:16px; box-shadow:0 4px 8px rgba(0,0,0,0.1); z-index:10000;">
+    <h3 style="margin-top:0;">알려드립니다.</h3>
+    <p>본 사이트는 전국연합학력평가 성적 분석용으로 제작되었습니다. 성적 분석용 파일을 업로드할 때는 반드시 '김영일교육컨설팅'에서 다운로드받거나 업로드용으로 제작된 CSV 파일 또는 XLSX 파일만을 사용해주십시오.</p>
+    <p>해당 사이트는 해룡고등학교에서만 사용할 수 있으며, 그 외의 사용은 사전 협의를 거쳐주시기 바랍니다. 별도의 서버가 없어 업로드한 파일 및 데이터는 별도의 저장소에 저장되거나 외부로 유출되지 않습니다.</p>
+    <h3>제작자 정보</h3>
+    <p><strong>황보현</strong> (해룡고등학교 교사 황혜원의 동생)</p>
+    <p>- 버그 제보 및 기능 문의: <strong>admin@ssogari.dev</strong></p>
+    <p style="margin-bottom:0;">이용해주셔서 감사합니다.</p>
+    <button id="closeInfoPopup" style="margin-top:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">닫기</button>
+  </div>
+
   <div id="messagePopup">
     <div id="messageContent"></div>
     <button onclick="closeMessage()" style="margin-top:16px; background:#2563eb; color:#fff; border:none; border-radius:8px; padding:8px 16px; cursor:pointer;">닫기</button>
@@ -23,8 +42,8 @@
     </div>
   </div>
   <header>
-    <h1>성적 분석 사이트</h1>
-    <p style="margin-top:8px; color:#c7d2fe; font-size:1.05rem;">전국연합학력평가 1학년 성적 분석 (초안)</p>
+    <h1>전국연합학력평가<br>성적 분석 / 비교</h1>
+    <p style="margin-top:8px; color:#c7d2fe; font-size:1.05rem;">전국연합학력평가 성적 분석 및 비교 자료 제작 보조 도구입니다.</p>
   </header>
   <nav>
     <button onclick="showSection('upload')" class="active">파일 업로드</button>
@@ -35,7 +54,7 @@
   <main>
     <!-- 파일 업로드 -->
     <section id="upload" class="active">
-      <h2>CSV/XLSX 파일 업로드</h2>
+      <h2>성적 입력 파일 업로드 (.XLSX / .CSV)</h2>
       <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" />
       <button onclick="parseFile()" class="copy-btn" style="background:var(--primary);margin-left:8px;">업로드 및 파싱</button>
       <div id="csvTableContainer"></div>
@@ -49,7 +68,7 @@
       <button onclick="applyCut()" class="copy-btn">적용</button>
       <!-- 붙여넣기 팝업 -->
       <div id="pastePopup" style="display:none;position:fixed;top:20%;left:50%;transform:translateX(-50%);background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.2);padding:24px;z-index:2000;">
-        <h3 style="margin-top:0;">EBSi 등급컷 HTML 붙여넣기</h3>
+        <h3 style="margin-top:0;">EBSi HTML 붙여넣기</h3>
         <textarea id="ebsiPasteArea" rows="12" style="width:420px;max-width:90vw;"></textarea><br>
         <button onclick="parsePasteHtml()" class="copy-btn" style="background:var(--primary);margin-top:10px;">추출 및 반영</button>
         <button onclick="closePastePopup()" class="copy-btn" style="margin-left:8px;">닫기</button>
@@ -90,6 +109,32 @@
   <script src="view_compare.js"></script>
   <script src="analyze_chart.js"></script>
   <script>
+    // 정보 버튼 및 팝업 관련
+    document.addEventListener('DOMContentLoaded', function() {
+      const infoButton = document.getElementById('infoButton');
+      const infoPopup = document.getElementById('infoPopup');
+      const closeBtn = document.getElementById('closeInfoPopup');
+
+      infoButton.addEventListener('click', function() {
+        if (infoPopup.style.display === 'none' || infoPopup.style.display === '') {
+          infoPopup.style.display = 'block';
+        } else {
+          infoPopup.style.display = 'none';
+        }
+      });
+
+      closeBtn.addEventListener('click', function() {
+        infoPopup.style.display = 'none';
+      });
+
+      // 팝업 외부 클릭 시 닫기
+      document.addEventListener('click', function(e) {
+        if (!infoPopup.contains(e.target) && !infoButton.contains(e.target)) {
+          infoPopup.style.display = 'none';
+        }
+      });
+    });
+
     // 붙여넣기 팝업 관련
     function showPastePopup() {
       document.getElementById('pastePopup').style.display = 'block';

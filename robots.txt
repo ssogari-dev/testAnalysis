@@ -1,0 +1,32 @@
+User-agent: *
+Disallow: /
+
+# 모든 검색봇 차단
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: facebookexternalhit
+Disallow: /
+
+User-agent: Twitterbot
+Disallow: /
+
+# 크롤링 지연 설정
+Crawl-delay: 86400
+
+# 사이트맵 없음
