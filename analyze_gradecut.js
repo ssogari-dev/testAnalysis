@@ -724,9 +724,6 @@ window.analyzeAll = async function() {
         <th>수학영역</th>
         <th>영어영역</th>
       </tr>
-      <tr>
-        <th> </th><th> </th><th> </th><th> </th>
-      </tr>
     </thead>
     <tbody>
       <tr>
