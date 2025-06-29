@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>성적 분석 사이트</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+</head>
+<body>
+  <div id="messagePopup">
+    <div id="messageContent"></div>
+    <button onclick="closeMessage()" style="margin-top:16px; background:#2563eb; color:#fff; border:none; border-radius:8px; padding:8px 16px; cursor:pointer;">닫기</button>
+  </div>
+  <div id="overlay"></div>
+  <div id="loadingPopup">
+    <div>
+      <div></div>
+      <p>로딩 중...</p>
+    </div>
+  </div>
+  <header>
+    <h1>성적 분석 사이트</h1>
+    <p style="margin-top:8px; color:#c7d2fe; font-size:1.05rem;">전국연합학력평가 1학년 성적 분석 (초안)</p>
+  </header>
+  <nav>
+    <button onclick="showSection('upload')" class="active">파일 업로드</button>
+    <button onclick="showSection('cut')">등급컷</button>
+    <button onclick="showSection('view')">성적 확인</button>
+    <button onclick="showSection('analyze')">성적 분석</button>
+  </nav>
+  <main>
+    <!-- 파일 업로드 -->
+    <section id="upload" class="active">
+      <h2>CSV/XLSX 파일 업로드</h2>
+      <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" />
+      <button onclick="parseFile()" class="copy-btn" style="background:var(--primary);margin-left:8px;">업로드 및 파싱</button>
+      <div id="csvTableContainer"></div>
+    </section>
+    <!-- 등급컷 -->
+    <section id="cut">
+      <h2>등급컷 입력</h2>
+      <!-- EBSi 드롭다운 메뉴가 여기에 바로 표시됩니다 -->
+      <div id="ebsiInputs"></div>
+      <div id="cutInputTable"></div>
+      <button onclick="applyCut()" class="copy-btn">적용</button>
+      <!-- 붙여넣기 팝업 -->
+      <div id="pastePopup" style="display:none;position:fixed;top:20%;left:50%;transform:translateX(-50%);background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.2);padding:24px;z-index:2000;">
+        <h3 style="margin-top:0;">EBSi 등급컷 HTML 붙여넣기</h3>
+        <textarea id="ebsiPasteArea" rows="12" style="width:420px;max-width:90vw;"></textarea><br>
+        <button onclick="parsePasteHtml()" class="copy-btn" style="background:var(--primary);margin-top:10px;">추출 및 반영</button>
+        <button onclick="closePastePopup()" class="copy-btn" style="margin-left:8px;">닫기</button>
+      </div>
+    </section>
+    <!-- 성적 확인 -->
+    <section id="view">
+      <h2>성적 확인</h2>
+      <div id="viewSelect" style="margin-bottom:18px;">
+        <label>학년:
+          <select id="viewGrade">
+            <option value="1">1학년</option>
+          </select>
+        </label>
+        <label style="margin-left:8px;">반:
+          <select id="viewClass">
+            <option value="">전체</option>
+          </select>
+        </label>
+        <label style="margin-left:8px;">번호:
+          <select id="viewNumber">
+            <option value="">전체</option>
+          </select>
+        </label>
+        <button onclick="showStudentData()" class="copy-btn" style="margin-left:8px;">검색</button>
+      </div>
+      <div id="viewContent"></div>
+    </section>
+    <!-- 성적 분석 -->
+    <section id="analyze">
+        <h2>성적 분석</h2>
+        <div id="analyzeContent"></div>
+      </section>
+  </main>
+  <script src="common.js"></script>
+  <script src="parse_upload.js"></script>
+  <script src="analyze_gradecut.js"></script>
+  <script src="view_compare.js"></script>
+  <script src="analyze_chart.js"></script>
+  <script>
+    // 붙여넣기 팝업 관련
+    function showPastePopup() {
+      document.getElementById('pastePopup').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+    function closePastePopup() {
+      document.getElementById('pastePopup').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+    function parsePasteHtml() {
+      const html = document.getElementById('ebsiPasteArea').value;
+      if (!html.trim()) {
+        showMessage('HTML을 붙여넣어 주세요.');
+        return;
+      }
+      parseEBSiGradeCutHtml(html, currentCutTab);
+      closePastePopup();
+    }
+  </script>
+</body>
+</html>
