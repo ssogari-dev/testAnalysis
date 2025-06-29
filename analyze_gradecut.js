@@ -940,7 +940,7 @@ window.handleCompareFile = function(e) {
       showMessage(`비교 파일이 업로드되었습니다: ${compareFileName}`);
     } else {
       // XLSX 파일이 아닌 경우 오류 메시지
-      showMessage("xlsx 파일만 업로드 가능합니다.");
+      showMessage("xlsx 파일만 업로드 가능합니다!\nExcel에서 다른 이름으로 저장하기를 통해\nxlsx 파일로 저장 후 업로드해주세요.");
       compareParsedData = [];
       document.getElementById('showCompareBtn').disabled = true;
     }
@@ -1039,7 +1039,7 @@ async function loadEbsiYearList() {
     
     // 연도 옵션들 추가
     data.result.forEach(y => {
-      sel.innerHTML += `<option value="${y.code}">${y.value}</option>`;
+      sel.innerHTML += `<option value="${y.code}">${y.value-1}</option>`;
     });
     
     sel.onchange = loadEbsiMonthList; // 연도 변경 시 월 목록 업데이트
@@ -1351,6 +1351,7 @@ async function fetchEbsiCompareCuts() {
     const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
     
     let html = `<h3>1,2등급 비율</h3>`;
+    html += `<button class="copy-btn" onclick="showGrade12ComparisonChart()">그래프 보기</button>`;
     html += `<table class="grade-12-ratio-table">
       <thead>
         <tr><th>구분</th>`;
@@ -1376,6 +1377,12 @@ async function fetchEbsiCompareCuts() {
     });
     html += `</tr>`;
     html += `</tbody></table>`;
+    html += `</table>
+  <div id="grade12Chart" style="display:none; margin-top:20px;">
+    <canvas id="grade12ComparisonChart" width="500" height="300"></canvas>
+    <button class="copy-btn" onclick="hideChart('grade12Chart')">그래프 숨기기</button>
+  </div>`;
+  
     ratioContainer.innerHTML = html;
   }
   
@@ -1581,6 +1588,87 @@ async function fetchEbsiCompareCuts() {
     // 기본적으로 전체 성적 분석 탭 활성화
     switchAnalyzeTab('all');
   };
+
+  // ------------------- 그래프 관련 함수 -------------------
+  /**
+ * 점수 분포 그래프를 표시하는 함수
+ * @param {string} scoreType - 점수 타입 ('원점수', '표준점수', '백분위')
+ */
+function showScoreDistributionChart(scoreType) {
+    document.getElementById(`chart_${scoreType}`).style.display = 'block';
+    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
+    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
+  }
+  
+  /**
+   * 등급별 원형 그래프를 표시하는 함수 (국어, 수학, 영어)
+   */
+  function showGradePieCharts() {
+    document.getElementById('gradeCharts').style.display = 'block';
+    const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
+    const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
+    const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
+    
+    window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
+    window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
+    window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
+  }
+  
+  /**
+   * 탐구 과목 원형 그래프를 표시하는 함수 (사회탐구, 과학탐구)
+   */
+  function showExploreGradePieCharts() {
+    document.getElementById('exploreCharts').style.display = 'block';
+    const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
+    const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
+    
+    window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
+    window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
+  }
+  
+  /**
+   * 비교 막대 그래프를 표시하는 함수
+   */
+  function showComparisonBarCharts() {
+    document.getElementById('comparisonCharts').style.display = 'block';
+    const subjects = ['국어', '수학', '영어'];
+    const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
+    
+    subjects.forEach(subj => {
+      const subjKey = subjectMap[subj];
+      const targetData = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      const compareData = getGradeDistByRecordedGrade(compareParsedData, subj);
+      window.analysisChart.createComparisonBarChart(`compare${subjKey.charAt(0).toUpperCase() + subjKey.slice(1)}Chart`, targetData, compareData, subj);
+    });
+  }
+  
+  /**
+   * 1,2등급 비율 비교 그래프를 표시하는 함수
+   */
+  function showGrade12ComparisonChart() {
+    document.getElementById('grade12Chart').style.display = 'block';
+    const subjects = ['국어', '수학', '영어'];
+    const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
+    
+    const targetData = {};
+    const compareData = {};
+    
+    subjects.forEach(subj => {
+      const subjKey = subjectMap[subj];
+      targetData[subjKey] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      compareData[subjKey] = get12GradeByRecordedGrade(compareParsedData, subj);
+    });
+    
+    window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
+  }
+  
+  /**
+   * 그래프를 숨기는 함수
+   * @param {string} chartId - 숨길 그래프 컨테이너 ID
+   */
+  function hideChart(chartId) {
+    document.getElementById(chartId).style.display = 'none';
+  }
   
   // ------------------- 페이지 로드 시 자동 초기화 -------------------
   // DOM이 완전히 로드된 후 탭 UI 초기화 실행
