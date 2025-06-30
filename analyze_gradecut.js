@@ -626,6 +626,7 @@ function renderOverallStatsTables() {
     
     const scoreTypes = ['원점수', '표준점수', '백분위'];
     const subjects = ['국어', '수학'];
+    const exploreSubjects = ['사회탐구', '과학탐구'];
     const statsLabels = [
       {label: '전체 평균', key: 'avg'},
       {label: '상위 10% 평균', key: 'top10'},
@@ -636,7 +637,7 @@ function renderOverallStatsTables() {
     let html = '';
     
     scoreTypes.forEach((scoreType, idx) => {
-      html += `<h3>${scoreType} 기준 통계</h3>`;
+      html += `<h3>${scoreType} 기준 통계 (국어, 수학)</h3>`;
       html += `<button class="copy-btn" onclick="showScoreDistributionChart('${scoreType}')">그래프 보기</button>`;
       html += `<table class="stats-table"><thead><tr><th>구분</th>`;
       subjects.forEach(subj => html += `<th>${subj} 영역</th>`);
@@ -676,6 +677,50 @@ function renderOverallStatsTables() {
         <canvas id="canvas_${scoreType}_korean" width="400" height="200"></canvas>
         <canvas id="canvas_${scoreType}_math" width="400" height="200"></canvas>
         <button class="copy-btn" onclick="hideChart('chart_${scoreType}')">그래프 숨기기</button>
+      </div>`;
+    });
+
+    scoreTypes.forEach(scoreType => {
+      html += `<h3>${scoreType} 기준 통계 (탐구 과목)</h3>`;
+      html += `<button class="copy-btn" onclick="showExploreDistributionChart('${scoreType}')">그래프 보기</button>`;
+      html += `<table class="stats-table"><thead><tr><th>구분</th>`;
+      exploreSubjects.forEach(subj => html += `<th>${subj} 영역</th>`);
+      html += `</tr></thead><tbody>`;
+      
+      statsLabels.forEach(stat => {
+        html += `<tr><td>${stat.label}</td>`;
+        exploreSubjects.forEach(subj => {
+          const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
+          arr.sort((a,b) => b-a);
+          let value = '-';
+          if (arr.length) {
+            if (stat.key === 'avg') {
+              value = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
+            }
+            else if (stat.key === 'top10') {
+              const top10Count = Math.ceil(arr.length*0.1);
+              value = (arr.slice(0,top10Count).reduce((a,b)=>a+b,0)/top10Count).toFixed(2);
+            }
+            else if (stat.key === 'top20') {
+              const top20Count = Math.ceil(arr.length*0.2);
+              value = (arr.slice(0,top20Count).reduce((a,b)=>a+b,0)/top20Count).toFixed(2);
+            }
+            else if (stat.key === 'top30') {
+              const top30Count = Math.ceil(arr.length*0.3);
+              value = (arr.slice(0,top30Count).reduce((a,b)=>a+b,0)/top30Count).toFixed(2);
+            }
+          }
+          html += `<td>${value}</td>`;
+        });
+        html += `</tr>`;
+      });
+      html += `</tbody></table>`;
+      
+      // 탐구 과목 그래프 컨테이너
+      html += `<div id="exploreChart_${scoreType}" style="display:none; margin-top:20px;">
+        <canvas id="canvas_${scoreType}_social" width="400" height="200"></canvas>
+        <canvas id="canvas_${scoreType}_science" width="400" height="200"></canvas>
+        <button class="copy-btn" onclick="hideChart('exploreChart_${scoreType}')">그래프 숨기기</button>
       </div>`;
     });
     
@@ -808,6 +853,7 @@ window.analyzeAll = async function() {
     html += `<td>${get12GradeByCut(parsed, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english).sum}</td>`;
     html += `</tr></tbody></table>`;
 
+
     // 8. 탐구 과목 영역별 등급 인원 현황
     html += `<h3>8. 탐구 과목 영역별 등급 인원 현황</h3>
     <button class="copy-btn" onclick="showExploreGradePieCharts()">그래프 보기</button>
@@ -843,6 +889,19 @@ window.analyzeAll = async function() {
   </div>
   <button class="copy-btn" onclick="hideChart('exploreCharts')">그래프 숨기기</button>
 </div>`;
+
+html += `<h3>8-1. 탐구 과목 영역별 1,2등급 비율</h3>
+<table id="exploreGrade12Table"><thead>
+  <tr><th class="no-copy">구분</th><th>사회탐구영역</th><th>과학탐구영역</th></tr>
+</thead><tbody>
+  <tr><td class="no-copy">1,2등급 인원 및 비율</td>`;
+html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).cnt} / ${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).ratio}</td>`;
+html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).cnt} / ${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).ratio}</td>`;
+html += `</tr>
+  <tr><td class="no-copy">합계</td>`;
+html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).sum}</td>`;
+html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).sum}</td>`;
+html += `</tr></tbody></table>`;
 
     // HTML을 페이지에 적용
     document.getElementById('analyzeSection_all').innerHTML = html;
@@ -1657,6 +1716,13 @@ function showScoreDistributionChart(scoreType) {
     });
     
     window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
+  }
+
+  // 7-2. 탐구 과목 영역별 점수 분포 그래프
+  function showExploreDistributionChart(scoreType) {
+    document.getElementById(`exploreChart_${scoreType}`).style.display = 'block';
+    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
+    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
   }
   
   /**
