@@ -17,7 +17,7 @@
 <body>
   <!-- 정보 버튼 -->
   <button id="infoButton" class="info-button">ⓘ 안내 / 문의</button>
-
+  
   <!-- 정보 팝업 -->
   <div id="infoPopup" class="info-popup">
     <h3>알려드립니다.</h3>
@@ -65,7 +65,7 @@
         <div id="lastUploadInfo" class="mt-10" style="color:var(--subtle-text-color); font-size:0.95rem;"></div>
       </div>
       <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" aria-label="성적 파일 업로드" />
-      <button onclick="parseFile()" class="copy-btn ml-8">업로드 및 파싱</button>
+      <button onclick="parseFile()" class="copy-btn ml-8" style="margin-top: 10px">업로드 및 파싱</button>
       <div id="csvTableContainer"></div>
     </section>
     <!-- 등급컷 -->
@@ -74,7 +74,7 @@
       <!-- EBSi 드롭다운 메뉴가 여기에 바로 표시됩니다 -->
       <div id="ebsiInputs"></div>
       <div id="cutInputTable"></div>
-      <button onclick="applyCut()" class="copy-btn">적용</button>
+      <button onclick="applyCut()" class="copy-btn" style="margin-top: 10px">적용</button>
       <!-- 붙여넣기 팝업 -->
       <div id="pastePopup" class="modal-card">
         <h3>EBSi HTML 붙여넣기</h3>
@@ -165,4 +165,3 @@
   </script>
 </body>
 </html>
-
