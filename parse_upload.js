@@ -50,19 +50,75 @@ window.parseFile = function() {
     };
     reader.readAsText(file, 'euc-kr');
   } else if (ext === 'xlsx') {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type: 'array'});
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false});
-      csvData = rows;
-      parsedData = parseXlsxRows(rows); // 임시 저장
-      displayParsedTable(parsedData);
-      showMessage('XLSX 파일이 업로드 및 파싱되었습니다.');
-      hideLoading();
-    };
-    reader.readAsArrayBuffer(file);
+    try {
+      const worker = new Worker('parser.worker.js');
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        worker.postMessage({ arrayBuffer: ev.target.result }, [ev.target.result]);
+      };
+      worker.onmessage = function(ev) {
+        const { ok, rows, error } = ev.data || {};
+        if (!ok) {
+          console.error('Worker error:', error);
+          // 폴백: 메인 스레드에서 파싱
+          fallbackParse();
+          return;
+        }
+        csvData = rows;
+        parsedData = parseXlsxRows(rows);
+        displayParsedTable(parsedData);
+        showMessage('XLSX 파일이 업로드 및 파싱되었습니다.');
+        hideLoading();
+        worker.terminate();
+      };
+      worker.onerror = function(err) {
+        console.error('Worker onerror:', err);
+        fallbackParse();
+      };
+      reader.readAsArrayBuffer(file);
+
+      function fallbackParse() {
+        const fr = new FileReader();
+        fr.onload = function(e2) {
+          try {
+            const data = new Uint8Array(e2.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false});
+            csvData = rows;
+            parsedData = parseXlsxRows(rows);
+            displayParsedTable(parsedData);
+            showMessage('XLSX 파일이 업로드 및 파싱되었습니다. (폴백)');
+          } catch (e) {
+            showMessage('XLSX 파싱 중 오류가 발생했습니다. ' + e.message);
+          } finally {
+            hideLoading();
+          }
+        };
+        fr.readAsArrayBuffer(file);
+      }
+    } catch (err) {
+      console.error('Worker init failed:', err);
+      // 워커 생성 실패 시 폴백
+      const fr = new FileReader();
+      fr.onload = function(e2) {
+        try {
+          const data = new Uint8Array(e2.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false});
+          csvData = rows;
+          parsedData = parseXlsxRows(rows);
+          displayParsedTable(parsedData);
+          showMessage('XLSX 파일이 업로드 및 파싱되었습니다. (폴백)');
+        } catch (e) {
+          showMessage('XLSX 파싱 중 오류가 발생했습니다. ' + e.message);
+        } finally {
+          hideLoading();
+        }
+      };
+      fr.readAsArrayBuffer(file);
+    }
   } else {
     showMessage('지원하지 않는 파일 형식입니다.');
     hideLoading();

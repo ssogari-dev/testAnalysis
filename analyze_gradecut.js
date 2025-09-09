@@ -19,10 +19,10 @@ function switchAnalyzeTab(tab) {
   document.querySelectorAll('.analyze-tab-btn').forEach(btn => btn.classList.remove('active'));
   // 선택된 탭 버튼에 active 클래스 추가
   document.getElementById('analyzeTabBtn_' + tab).classList.add('active');
-  // 모든 섹션 숨기기
-  document.querySelectorAll('.analyze-section').forEach(sec => sec.style.display = 'none');
+  // 모든 섹션 숨기기 (hidden 클래스로 제어)
+  document.querySelectorAll('.analyze-section').forEach(sec => sec.classList.add('hidden'));
   // 선택된 섹션만 표시
-  document.getElementById('analyzeSection_' + tab).style.display = '';
+  document.getElementById('analyzeSection_' + tab).classList.remove('hidden');
   
   // 탭별 초기화 함수 실행
   if (tab === 'all') window.analyzeAll(); // 전체 성적 분석 실행
@@ -41,10 +41,10 @@ function initCutTable() {
   
   // 원점수 등급컷 테이블 HTML 생성
   let html = `
-    <div style="display:flex;gap:32px;flex-wrap:wrap;">
-      <div>
-        <h4 style="margin-bottom:6px;">원점수 등급컷</h4>
-        <table>
+    <div class="grade-cut-tables-container">
+      <div class="table-wrapper">
+        <h4 class="mb-6">원점수 등급컷</h4>
+        <table class="cut-table">
           <thead>
             <tr>
               <th class="no-copy">등급</th>
@@ -64,10 +64,10 @@ function initCutTable() {
     html += `
       <tr>
         <td class="no-copy">${i}등급</td>
-        <td><input type="number" id="raw_korean${i}" required placeholder="점수" value="${cut.raw.korean[i-1]||''}"></td>
-        <td><input type="number" id="raw_math${i}" required placeholder="점수" value="${cut.raw.math[i-1]||''}"></td>
-        <td><input type="number" id="raw_social${i}" required placeholder="점수" value="${cut.raw.social[i-1]||''}"></td>
-        <td><input type="number" id="raw_science${i}" required placeholder="점수" value="${cut.raw.science[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="raw_korean${i}" required placeholder="점수" value="${cut.raw.korean[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="raw_math${i}" required placeholder="점수" value="${cut.raw.math[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="raw_social${i}" required placeholder="점수" value="${cut.raw.social[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="raw_science${i}" required placeholder="점수" value="${cut.raw.science[i-1]||''}"></td>
         <td>${cut.raw.history?.[i-1]??''}</td>
         <td>${cut.raw.english?.[i-1]??''}</td>
       </tr>
@@ -79,9 +79,9 @@ function initCutTable() {
           </tbody>
         </table>
       </div>
-      <div>
-        <h4 style="margin-bottom:6px;">표준점수 등급컷</h4>
-        <table>
+      <div class="table-wrapper">
+        <h4 class="mb-6">표준점수 등급컷</h4>
+        <table class="cut-table">
           <thead>
             <tr>
               <th class="no-copy">등급</th>
@@ -99,10 +99,10 @@ function initCutTable() {
     html += `
       <tr>
         <td class="no-copy">${i}등급</td>
-        <td><input type="number" id="std_korean${i}" required placeholder="점수" value="${cut.std.korean[i-1]||''}"></td>
-        <td><input type="number" id="std_math${i}" required placeholder="점수" value="${cut.std.math[i-1]||''}"></td>
-        <td><input type="number" id="std_social${i}" required placeholder="점수" value="${cut.std.social[i-1]||''}"></td>
-        <td><input type="number" id="std_science${i}" required placeholder="점수" value="${cut.std.science[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="std_korean${i}" required placeholder="점수" value="${cut.std.korean[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="std_math${i}" required placeholder="점수" value="${cut.std.math[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="std_social${i}" required placeholder="점수" value="${cut.std.social[i-1]||''}"></td>
+        <td><input class="grade-cut-input" type="number" id="std_science${i}" required placeholder="점수" value="${cut.std.science[i-1]||''}"></td>
       </tr>
     `;
   }
@@ -114,6 +114,8 @@ function initCutTable() {
     </div>
   `;
   cutTable.innerHTML = html;
+  // 입력값 실시간 유효성 검사 핸들러 부착
+  attachCutInputValidation();
 }
 
 // ------------------- 등급컷 적용 및 저장 -------------------
@@ -124,6 +126,13 @@ function initCutTable() {
 window.applyCut = function() {
   showLoading();
   setTimeout(() => {
+    // 저장 전 유효성 검사
+    const validation = validateCutInputs(true);
+    if (!validation.valid) {
+      hideLoading();
+      showMessage('등급컷 입력 오류\n- ' + validation.errors[0]);
+      return;
+    }
     const cut = gradeCuts.target;
     
     // 1~8등급 원점수 및 표준점수 등급컷 저장
@@ -145,6 +154,73 @@ window.applyCut = function() {
     hideLoading();
   }, 300);
 };
+
+// ------------------- 등급컷 유효성 검사 (실시간/저장 전) -------------------
+function attachCutInputValidation() {
+  const inputs = document.querySelectorAll('#cutInputTable input[type="number"]');
+  inputs.forEach(inp => {
+    inp.addEventListener('input', () => validateCutInputs(true));
+  });
+}
+
+function validateCutInputs(applyStyles = false) {
+  const subjectsRaw = ['korean','math','social','science'];
+  const subjectsStd = ['korean','math','social','science'];
+  const errors = [];
+
+  // 도우미: 입력 엘리먼트 가져오기
+  const getVal = (id) => {
+    const el = document.getElementById(id);
+    return el ? Number(el.value) : NaN;
+  };
+  const mark = (id, ok) => {
+    if (!applyStyles) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.borderColor = ok ? '' : '#dc3545';
+    el.style.boxShadow = ok ? '' : '0 0 0 2px rgba(220,53,69,0.15)';
+  };
+
+  // 원점수: 0~100, 단조감소(1등급 >= 2등급 ...)
+  subjectsRaw.forEach(key => {
+    let prev = Infinity;
+    for (let i = 1; i <= 8; i++) {
+      const id = `raw_${key}${i}`;
+      const v = getVal(id);
+      const inRange = !isNaN(v) && v >= 0 && v <= 100;
+      mark(id, inRange);
+      if (!inRange) {
+        errors.push(`[원점수/${key}] ${i}등급 값이 유효하지 않습니다 (0~100)`);
+      }
+      if (v > prev) {
+        mark(id, false);
+        errors.push(`[원점수/${key}] ${i-1}등급 ≥ ${i}등급 규칙 위반`);
+      }
+      prev = isNaN(v) ? prev : v;
+    }
+  });
+
+  // 표준점수: 0~200, 단조감소
+  subjectsStd.forEach(key => {
+    let prev = Infinity;
+    for (let i = 1; i <= 8; i++) {
+      const id = `std_${key}${i}`;
+      const v = getVal(id);
+      const inRange = !isNaN(v) && v >= 0 && v <= 200;
+      mark(id, inRange);
+      if (!inRange) {
+        errors.push(`[표준점수/${key}] ${i}등급 값이 유효하지 않습니다 (0~200)`);
+      }
+      if (v > prev) {
+        mark(id, false);
+        errors.push(`[표준점수/${key}] ${i-1}등급 ≥ ${i}등급 규칙 위반`);
+      }
+      prev = isNaN(v) ? prev : v;
+    }
+  });
+
+  return { valid: errors.length === 0, errors };
+}
 
 // ------------------- EBSi 등급컷 HTML 파싱 및 추출 -------------------
 /**
@@ -284,15 +360,15 @@ function updateEbsiUI(examData) {
   
   // 연도/학년/시험 선택 드롭다운 UI 생성
   ebsiContainer.innerHTML = `
-    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
+    <div class="flex-row gap-10 align-center mb-20">
       <label>
-        <select id="ebsiYear" style="min-width:90px" onchange="updateGradeOptions()">
+        <select id="ebsiYear" class="minw-90" onchange="updateGradeOptions()">
           <option value="">연도선택</option>
           ${Object.keys(examData).map(year => `<option value="${year}">${year}년</option>`).join('')}
         </select>
       </label>
       <label>
-        <select id="ebsiGrade" style="min-width:70px" onchange="updateExamOptions()">
+        <select id="ebsiGrade" class="minw-70" onchange="updateExamOptions()">
           <option value="">학년선택</option>
           <option value="D100">1학년</option>
           <option value="D200">2학년</option>
@@ -300,12 +376,12 @@ function updateEbsiUI(examData) {
         </select>
       </label>
       <label>
-        <select id="ebsiExam" style="min-width:120px">
+        <select id="ebsiExam" class="minw-120">
           <option value="">시험선택</option>
         </select>
       </label>
       <button type="button" class="copy-btn" onclick="loadEbsiGradeCuts()">등급컷 불러오기</button>
-      <button onclick="showPastePopup()" class="copy-btn" style="margin-left:8px;">EBSi HTML 붙여넣기</button>
+      <button onclick="showPastePopup()" class="copy-btn ml-8">EBSi HTML 붙여넣기</button>
     </div>
   `;
   
@@ -638,7 +714,7 @@ function renderOverallStatsTables() {
     
     scoreTypes.forEach((scoreType, idx) => {
       html += `<h3>${scoreType} 기준 통계 (국어, 수학)</h3>`;
-      html += `<button class="copy-btn" onclick="showScoreDistributionChart('${scoreType}')">그래프 보기</button>`;
+      html += `<button class="copy-btn" onclick="toggleScoreDistributionChart('${scoreType}', this)">그래프 보기</button>`;
       html += `<table class="stats-table"><thead><tr><th>구분</th>`;
       subjects.forEach(subj => html += `<th>${subj} 영역</th>`);
       html += `</tr></thead><tbody>`;
@@ -673,16 +749,26 @@ function renderOverallStatsTables() {
       html += `</tbody></table>`;
       
       // 그래프 컨테이너 추가
-      html += `<div id="chart_${scoreType}" style="display:none; margin-top:20px;">
-        <canvas id="canvas_${scoreType}_korean" width="400" height="200"></canvas>
-        <canvas id="canvas_${scoreType}_math" width="400" height="200"></canvas>
-        <button class="copy-btn" onclick="hideChart('chart_${scoreType}')">그래프 숨기기</button>
+      html += `<div id="chart_${scoreType}" class="hidden mt-20">
+        <div class="charts-two-col">
+          <div class="chart-container"><canvas id="canvas_${scoreType}_korean" class="chart-canvas"></canvas></div>
+          <div class="chart-container"><canvas id="canvas_${scoreType}_math" class="chart-canvas"></canvas></div>
+        </div>
+      </div>`;
+
+      // CDF 버튼/컨테이너 추가
+      html += `<button class="copy-btn mt-10" onclick="toggleScoreCdfChart('${scoreType}', this)">누적분포(CDF) 보기</button>`;
+      html += `<div id="cdf_${scoreType}" class="hidden mt-20">
+        <div class="charts-two-col">
+          <div class="chart-container"><canvas id="cdf_${scoreType}_korean" class="chart-canvas"></canvas></div>
+          <div class="chart-container"><canvas id="cdf_${scoreType}_math" class="chart-canvas"></canvas></div>
+        </div>
       </div>`;
     });
 
     scoreTypes.forEach(scoreType => {
       html += `<h3>${scoreType} 기준 통계 (탐구 과목)</h3>`;
-      html += `<button class="copy-btn" onclick="showExploreDistributionChart('${scoreType}')">그래프 보기</button>`;
+      html += `<button class="copy-btn" onclick="toggleExploreDistributionChart('${scoreType}', this)">그래프 보기</button>`;
       html += `<table class="stats-table"><thead><tr><th>구분</th>`;
       exploreSubjects.forEach(subj => html += `<th>${subj} 영역</th>`);
       html += `</tr></thead><tbody>`;
@@ -717,10 +803,19 @@ function renderOverallStatsTables() {
       html += `</tbody></table>`;
       
       // 탐구 과목 그래프 컨테이너
-      html += `<div id="exploreChart_${scoreType}" style="display:none; margin-top:20px;">
-        <canvas id="canvas_${scoreType}_social" width="400" height="200"></canvas>
-        <canvas id="canvas_${scoreType}_science" width="400" height="200"></canvas>
-        <button class="copy-btn" onclick="hideChart('exploreChart_${scoreType}')">그래프 숨기기</button>
+      html += `<div id="exploreChart_${scoreType}" class="hidden mt-20">
+        <div class="charts-two-col">
+          <div class="chart-container"><canvas id="canvas_${scoreType}_social" class="chart-canvas"></canvas></div>
+          <div class="chart-container"><canvas id="canvas_${scoreType}_science" class="chart-canvas"></canvas></div>
+        </div>
+      </div>`;
+      // 탐구 CDF
+      html += `<button class="copy-btn mt-10" onclick="toggleExploreCdfChart('${scoreType}', this)">탐구 CDF 보기</button>`;
+      html += `<div id="cdfExplore_${scoreType}" class="hidden mt-20">
+        <div class="charts-two-col">
+          <div class="chart-container"><canvas id="cdfExplore_${scoreType}_social" class="chart-canvas"></canvas></div>
+          <div class="chart-container"><canvas id="cdfExplore_${scoreType}_science" class="chart-canvas"></canvas></div>
+        </div>
       </div>`;
     });
     
@@ -760,7 +855,10 @@ window.analyzeAll = async function() {
     }
 
     // 1. 영역별 응시자 현황 테이블
-    let html = `<h3>1. 영역별 응시자 현황</h3>
+    let html = `<div class="analysis-header">
+      <h3>1. 영역별 응시자 현황</h3>
+      <div class="btn-container"></div>
+    </div>
     <table id="examStatusTable"><thead>
       <tr>
         <th class="no-copy" rowspan="2">구분</th>
@@ -796,7 +894,7 @@ window.analyzeAll = async function() {
 
     // 6. 국어, 수학, 영어 영역별 등급 인원 현황
     html += `<h3>6. 국어, 수학, 영어 영역별 등급 인원 현황</h3>
-    <button class="copy-btn" onclick="showGradePieCharts()">그래프 보기</button>
+    <button class="copy-btn" onclick="toggleGradePieCharts(this)">그래프 보기</button>
     <table id="gradeDistTable"><thead>
       <tr>
         <th class="no-copy" rowspan="2">구분</th>
@@ -828,13 +926,13 @@ window.analyzeAll = async function() {
     html += `</tr></tbody></table>`;
 
     html += `</table>
-<div id="gradeCharts" style="display:none; margin-top:20px;">
-  <div style="display:flex; gap:20px; flex-wrap:wrap;">
-    <div><h4>국어</h4><canvas id="koreanGradeChart" width="300" height="300"></canvas></div>
-    <div><h4>수학</h4><canvas id="mathGradeChart" width="300" height="300"></canvas></div>
-    <div><h4>영어</h4><canvas id="englishGradeChart" width="300" height="300"></canvas></div>
+<div id="gradeCharts" class="hidden mt-20">
+  <div class="charts-two-col">
+    <div class="chart-container"><h4>국어</h4><canvas id="koreanGradeChart" class="chart-canvas"></canvas></div>
+    <div class="chart-container"><h4>수학</h4><canvas id="mathGradeChart" class="chart-canvas"></canvas></div>
+    <div class="chart-container"><h4>영어</h4><canvas id="englishGradeChart" class="chart-canvas"></canvas></div>
   </div>
-  <button class="copy-btn" onclick="hideChart('gradeCharts')">그래프 숨기기</button>
+  
 </div>`;
 
     // 7. 국어, 수학, 영어 영역별 1,2등급 비율
@@ -856,7 +954,7 @@ window.analyzeAll = async function() {
 
     // 8. 탐구 과목 영역별 등급 인원 현황
     html += `<h3>8. 탐구 과목 영역별 등급 인원 현황</h3>
-    <button class="copy-btn" onclick="showExploreGradePieCharts()">그래프 보기</button>
+    <button class="copy-btn" onclick="toggleExploreGradePieCharts(this)">그래프 보기</button>
     <table id="exploreGradeDistTable"><thead>
       <tr>
         <th class="no-copy" rowspan="2">구분</th>
@@ -882,12 +980,12 @@ window.analyzeAll = async function() {
     html += `</tr></tbody></table>`;
 
     html += `</table>
-<div id="exploreCharts" style="display:none; margin-top:20px;">
-  <div style="display:flex; gap:20px; flex-wrap:wrap;">
-    <div><h4>사회탐구</h4><canvas id="socialGradeChart" width="300" height="300"></canvas></div>
-    <div><h4>과학탐구</h4><canvas id="scienceGradeChart" width="300" height="300"></canvas></div>
+<div id="exploreCharts" class="hidden mt-20">
+  <div class="charts-two-col">
+    <div class="chart-container"><h4>사회탐구</h4><canvas id="socialGradeChart" class="chart-canvas"></canvas></div>
+    <div class="chart-container"><h4>과학탐구</h4><canvas id="scienceGradeChart" class="chart-canvas"></canvas></div>
   </div>
-  <button class="copy-btn" onclick="hideChart('exploreCharts')">그래프 숨기기</button>
+  
 </div>`;
 
 html += `<h3>8-1. 탐구 과목 영역별 1,2등급 비율</h3>
@@ -903,6 +1001,10 @@ html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.soci
 html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).sum}</td>`;
 html += `</tr></tbody></table>`;
 
+    // 9. 과목 조합 분석 카드
+    html += `<h3>9. 과목 조합 분석</h3>`;
+    html += `<div id="comboContainer">` + renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML() + `</div>`;
+ 
     // HTML을 페이지에 적용
     document.getElementById('analyzeSection_all').innerHTML = html;
 
@@ -912,6 +1014,8 @@ html += `</tr></tbody></table>`;
     hideLoading();
   }, 300);
 };
+
+// PDF 내보내기 기능은 요구에 따라 제거되었습니다.
 
 // ------------------- 비교 성적 분석 시스템 -------------------
 /**
@@ -1014,7 +1118,7 @@ function renderCompareResult() {
     return;
   }
   
-  document.getElementById('compareResult').innerHTML = `<div style="margin-bottom:10px;"><b>비교 파일:</b> ${compareFileName}</div>`;
+  document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${compareFileName}</div>`;
 
   // 각종 비교 테이블들 렌더링
   renderCompareGradeTable(); // 등급컷 비교 테이블
@@ -1046,20 +1150,20 @@ function renderEbsiCutLoaderUI() {
   // 새로운 UI 요소 생성
   const div = document.createElement('div');
   div.id = 'ebsiCutLoader';
-  div.style.marginBottom = '18px';
+  div.className = 'mb-18';
   div.innerHTML = `
     <label>연도:
-      <select id="ebsiYearSelect" style="min-width:90px"></select>
+      <select id="ebsiYearSelect" class="minw-90"></select>
     </label>
     <label>학년:
-      <select id="ebsiGradeSelect" disabled style="min-width:70px">
+      <select id="ebsiGradeSelect" disabled class="minw-70">
         <option value="1" selected>1학년</option>
       </select>
     </label>
     <label>월:
-      <select id="ebsiMonthSelect" style="min-width:70px"></select>
+      <select id="ebsiMonthSelect" class="minw-70"></select>
     </label>
-    <button type="button" id="ebsiCutFetchBtn" class="copy-btn" style="margin-left:8px">EBSi 등급컷 불러오기</button>
+    <button type="button" id="ebsiCutFetchBtn" class="copy-btn ml-8">EBSi 등급컷 불러오기</button>
   `;
   
   container.prepend(div);
@@ -1067,9 +1171,7 @@ function renderEbsiCutLoaderUI() {
   // 상태 표시 div 생성
   const statusDiv = document.createElement('div');
   statusDiv.id = 'ebsiCutStatus';
-  statusDiv.style.color = '#888';
-  statusDiv.style.fontSize = '0.97em';
-  statusDiv.style.marginBottom = '8px';
+  statusDiv.className = 'status-text';
   container.insertBefore(statusDiv, div.nextSibling);
   
   // 초기화 함수들 실행
@@ -1230,7 +1332,7 @@ async function fetchEbsiCompareCuts() {
     const compareKor = ebsiCompareCuts.korean || [];
     const compareMath = ebsiCompareCuts.math || [];
     
-    let html = `<table class="grade-compare-table" style="margin-top:18px">
+    let html = `<table class="grade-compare-table mt-18">
       <thead>
         <tr>
           <th rowspan="2">구분</th>
@@ -1407,7 +1509,7 @@ async function fetchEbsiCompareCuts() {
     const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
     
     let html = `<h3>1,2등급 비율</h3>`;
-    html += `<button class="copy-btn" onclick="showGrade12ComparisonChart()">그래프 보기</button>`;
+    html += `<button class="copy-btn" onclick="toggleGrade12ComparisonChart(this)">그래프 보기</button>`;
     html += `<table class="grade-12-ratio-table">
       <thead>
         <tr><th>구분</th>`;
@@ -1434,9 +1536,8 @@ async function fetchEbsiCompareCuts() {
     html += `</tr>`;
     html += `</tbody></table>`;
     html += `</table>
-  <div id="grade12Chart" style="display:none; margin-top:20px;">
+  <div id="grade12Chart" class="hidden mt-20">
     <canvas id="grade12ComparisonChart" width="500" height="300"></canvas>
-    <button class="copy-btn" onclick="hideChart('grade12Chart')">그래프 숨기기</button>
   </div>`;
   
     ratioContainer.innerHTML = html;
@@ -1483,6 +1584,30 @@ async function fetchEbsiCompareCuts() {
   let showAllStudents = false; // 전체 학생 표시 여부
   let showStudentDetails = true; // 학년/반/번호 표시 여부
   
+  // 학생 명단 등급 필터 상태 (1~9 기본)
+  let studentGradeFilter = {
+    kor: { min: 1, max: 9 },
+    math: { min: 1, max: 9 },
+    eng: { min: 1, max: 9 }
+  };
+  
+  // 등급 필터 값 설정 및 재렌더
+  function setStudentFilter(subjectKey) {
+    const minSel = document.getElementById(`filter_${subjectKey}_min`);
+    const maxSel = document.getElementById(`filter_${subjectKey}_max`);
+    if (!minSel || !maxSel) return;
+    let min = Number(minSel.value || '1');
+    let max = Number(maxSel.value || '9');
+    if (min > max) { const t = min; min = max; max = t; }
+    studentGradeFilter[subjectKey] = { min, max };
+    renderStudentList();
+  }
+  
+  function resetStudentFilters() {
+    studentGradeFilter = { kor: {min:1,max:9}, math: {min:1,max:9}, eng: {min:1,max:9} };
+    renderStudentList();
+  }
+  
   /**
    * 학생 명단을 렌더링하는 함수
    * 정렬, 필터링, 페이징 기능을 포함
@@ -1516,6 +1641,19 @@ async function fetchEbsiCompareCuts() {
       else return (a[studentSortKey]||0)-(b[studentSortKey]||0);
     });
     
+    // 등급 범위 필터 적용 (영어는 원점수 컷 기준으로 산출된 등급 사용)
+    const inRange = (g, min, max) => {
+      if (g === '-' || isNaN(Number(g))) return false;
+      const n = Number(g);
+      return n >= min && n <= max;
+    };
+    students = students.filter(s => {
+      const okKor = inRange(s.korGrade, studentGradeFilter.kor.min, studentGradeFilter.kor.max);
+      const okMath = inRange(s.mathGrade, studentGradeFilter.math.min, studentGradeFilter.math.max);
+      const okEng = inRange(s.engGrade, studentGradeFilter.eng.min, studentGradeFilter.eng.max);
+      return okKor && okMath && okEng;
+    });
+    
     // HTML 생성 시작
     let html = `
       <div style="margin-bottom: 10px;">
@@ -1524,6 +1662,26 @@ async function fetchEbsiCompareCuts() {
           학년/반/번호 표시
         </label>
       </div>
+      <div class="filter-controls">
+        <div class="filter-group">
+          <label>국어 등급
+            <select id="filter_kor_min" onchange="setStudentFilter('kor')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.kor.min===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            ~
+            <select id="filter_kor_max" onchange="setStudentFilter('kor')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.kor.max===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+          </label>
+          <label>수학 등급
+            <select id="filter_math_min" onchange="setStudentFilter('math')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.math.min===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            ~
+            <select id="filter_math_max" onchange="setStudentFilter('math')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.math.max===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+          </label>
+          <label>영어 등급
+            <select id="filter_eng_min" onchange="setStudentFilter('eng')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.eng.min===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            ~
+            <select id="filter_eng_max" onchange="setStudentFilter('eng')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.eng.max===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+          </label>
+          <button class="action-btn-secondary" onclick="resetStudentFilters()">필터 초기화</button>
+        </div>
+      </div>
       <table id="studentListTable"><thead><tr>`;
     
     // 헤더 생성 (조건부 표시)
@@ -1531,11 +1689,11 @@ async function fetchEbsiCompareCuts() {
       html += `<th class="no-copy">학년</th><th class="no-copy">반</th><th class="no-copy">번호</th>`;
     }
     html += `<th class="no-copy">이름</th>
-      <th class="sortable" onclick="sortStudentList('kor')">국어</th>
-      <th class="sortable" onclick="sortStudentList('math')">수학</th>
-      <th class="sortable" onclick="sortStudentList('eng')">영어</th>
-      <th class="sortable" onclick="sortStudentList('explore')">탐구</th>
-      <th class="sortable" onclick="sortStudentList('sum')">표점합</th>
+      <th class="sortable" onclick="sortStudentList('kor')">국어<span class="sort-indicator">${studentSortKey==='kor' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('math')">수학<span class="sort-indicator">${studentSortKey==='math' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('eng')">영어<span class="sort-indicator">${studentSortKey==='eng' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('explore')">탐구<span class="sort-indicator">${studentSortKey==='explore' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('sum')">표점합<span class="sort-indicator">${studentSortKey==='sum' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
     </tr></thead><tbody>`;
     
     // 표시할 학생 수 결정
@@ -1563,9 +1721,9 @@ async function fetchEbsiCompareCuts() {
     
     // 전체 보기/축소 버튼 추가
     if (!showAllStudents && students.length > 20) {
-      html += `<button onclick="showAllStudents=true;renderStudentList();" class="copy-btn" style="margin-top:12px;">전체(${students.length}명) 보기</button>`;
+      html += `<button onclick="showAllStudents=true;renderStudentList();" class="copy-btn mt-12">전체(${students.length}명) 보기</button>`;
     } else if (showAllStudents && students.length > 20) {
-      html += `<button onclick="showAllStudents=false;renderStudentList();" class="copy-btn" style="margin-top:12px;">처음 20명만 보기</button>`;
+      html += `<button onclick="showAllStudents=false;renderStudentList();" class="copy-btn mt-12">처음 20명만 보기</button>`;
     }
     
     document.getElementById('analyzeSection_list').innerHTML = html;
@@ -1617,7 +1775,7 @@ async function fetchEbsiCompareCuts() {
   window.initAnalyzeTabs = function() {
     // 탭 버튼 HTML 생성
     let tabHtml = `
-      <div style="margin-bottom:18px;">
+      <div class="mb-18">
         <button id="analyzeTabBtn_all" class="analyze-tab-btn active" onclick="switchAnalyzeTab('all')">전체 성적 분석</button>
         <button id="analyzeTabBtn_compare" class="analyze-tab-btn" onclick="switchAnalyzeTab('compare')">비교 성적 분석</button>
         <button id="analyzeTabBtn_list" class="analyze-tab-btn" onclick="switchAnalyzeTab('list')">학생 명단</button>
@@ -1627,8 +1785,8 @@ async function fetchEbsiCompareCuts() {
     // 섹션 컨테이너 HTML 생성
     let sectionHtml = `
       <div id="analyzeSection_all" class="analyze-section"></div>
-      <div id="analyzeSection_compare" class="analyze-section" style="display:none;"></div>
-      <div id="analyzeSection_list" class="analyze-section" style="display:none;"></div>
+      <div id="analyzeSection_compare" class="analyze-section hidden"></div>
+      <div id="analyzeSection_list" class="analyze-section hidden"></div>
     `;
     
     // HTML을 페이지에 적용
@@ -1638,7 +1796,7 @@ async function fetchEbsiCompareCuts() {
     document.getElementById('analyzeSection_compare').innerHTML = `
       <input type="file" id="compareUploadInput" accept=".xlsx" onchange="handleCompareFile(event)" />
       <button id="showCompareBtn" class="copy-btn" onclick="renderCompareResult()" disabled>비교 결과 보기</button>
-      <div id="compareResult" style="margin-top:18px;"></div>
+      <div id="compareResult" class="mt-18"></div>
     `;
   
     // 기본적으로 전체 성적 분석 탭 활성화
@@ -1739,4 +1897,504 @@ function showScoreDistributionChart(scoreType) {
     setTimeout(window.initAnalyzeTabs, 0);
   } else {
     window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
+  }
+
+  // ------------------- 과목 조합 통계 유틸 -------------------
+  // 사용자 정의 조합 전역 상태 (재선언 방지)
+  if (typeof comboScoreType === 'undefined') {
+    var comboScoreType = 'auto'; // 'auto' | '표준점수' | '원점수' | '백분위'
+  }
+  if (typeof comboSelections === 'undefined') {
+    var comboSelections = { kor: true, math: true, explore: true }; // 기본: 국+수+탐
+  }
+
+  function getUseStdForCombo() {
+    if (comboScoreType === '표준점수') return true;
+    if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
+    return (window.uploadedFileExt === 'xlsx');
+  }
+
+  function getScoreBySubjectAndType(s, subject) {
+    if (comboScoreType === '백분위') {
+      if (subject === '탐구') {
+        const a = Number(s.사회탐구?.백분위 ?? NaN);
+        const b = Number(s.과학탐구?.백분위 ?? NaN);
+        return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+      }
+      return Number(s[subject]?.백분위 ?? NaN);
+    }
+    const useStd = getUseStdForCombo();
+    return getScoreBySubject(s, subject, useStd);
+  }
+
+  function getScoreBySubject(s, subject, useStd) {
+    if (subject === '국어' || subject === '수학') {
+      return Number(useStd ? (s[subject]?.표준점수 ?? NaN) : (s[subject]?.원점수 ?? NaN));
+    }
+    if (subject === '탐구') {
+      const a = Number(useStd ? (s.사회탐구?.표준점수 ?? NaN) : (s.사회탐구?.원점수 ?? NaN));
+      const b = Number(useStd ? (s.과학탐구?.표준점수 ?? NaN) : (s.과학탐구?.원점수 ?? NaN));
+      return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+    }
+    return NaN;
+  }
+
+  function computeComboScores(data, combo) {
+    return data.map(s => combo.reduce((sum, subj) => {
+      const v = getScoreBySubjectAndType(s, subj);
+      return sum + (isNaN(v) ? 0 : v);
+    }, 0)).filter(v => !isNaN(v));
+  }
+
+  function summarizeScores(scores) {
+    if (!scores.length) return { avg: '-', top10: '-', top20: '-', top30: '-' };
+    const arr = [...scores].sort((a,b)=>b-a);
+    const avg = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
+    const pct = p => {
+      const c = Math.max(1, Math.ceil(arr.length*p));
+      return (arr.slice(0,c).reduce((a,b)=>a+b,0)/c).toFixed(2);
+    };
+    return { avg, top10: pct(0.1), top20: pct(0.2), top30: pct(0.3) };
+  }
+
+  function renderSubjectComboCardsHTML() {
+    const selected = buildSelectedCombo();
+    if (selected.length === 0) return '<p>조합을 선택하세요.</p>';
+    const combos = [ { key: 'custom', label: selected.join(' + '), subjects: selected } ];
+    let html = '<div class="subject-combo-box">';
+    combos.forEach(c => {
+      const scores = computeComboScores(parsedData, c.subjects);
+      const stats = summarizeScores(scores);
+      html += `
+      <div class="table-container p-12">
+        <h4 class="mt-6 mb-10">${c.label}</h4>
+        <table><thead><tr><th>지표</th><th>값</th></tr></thead>
+        <tbody>
+          <tr><td>평균</td><td>${stats.avg}</td></tr>
+          <tr><td>상위 10% 평균</td><td>${stats.top10}</td></tr>
+          <tr><td>상위 20% 평균</td><td>${stats.top20}</td></tr>
+          <tr><td>상위 30% 평균</td><td>${stats.top30}</td></tr>
+        </tbody></table>
+      </div>`;
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function buildSelectedCombo() {
+    const arr = [];
+    if (comboSelections.kor) arr.push('국어');
+    if (comboSelections.math) arr.push('수학');
+    if (comboSelections.explore) arr.push('탐구');
+    return arr;
+  }
+
+  window.renderAnalyzeCombos = function(){
+    // 전체 분석 섹션 내 조합 컨트롤/카드 영역 재구성
+    const container = document.getElementById('comboContainer');
+    if (container) {
+      container.innerHTML = renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML();
+    }
+  }
+
+  function renderSubjectComboControlsHTML() {
+    return `
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label><input type="checkbox" id="combo_kor" ${comboSelections.kor?'checked':''} onchange="toggleComboSubject('kor')">국어</label>
+        <label><input type="checkbox" id="combo_math" ${comboSelections.math?'checked':''} onchange="toggleComboSubject('math')">수학</label>
+        <label><input type="checkbox" id="combo_explore" ${comboSelections.explore?'checked':''} onchange="toggleComboSubject('explore')">탐구(2)</label>
+        <label>점수 기준
+          <select id="combo_score_type" onchange="changeComboScoreType()">
+            <option value="auto" ${comboScoreType==='auto'?'selected':''}>자동(파일 형식)</option>
+            <option value="표준점수" ${comboScoreType==='표준점수'?'selected':''}>표준점수</option>
+            <option value="원점수" ${comboScoreType==='원점수'?'selected':''}>원점수</option>
+            <option value="백분위" ${comboScoreType==='백분위'?'selected':''}>백분위</option>
+          </select>
+        </label>
+        <button class="action-btn-secondary" onclick="renderAnalyzeCombos()">적용</button>
+      </div>
+    </div>`;
+  }
+
+  window.toggleComboSubject = function(key) {
+    comboSelections[key] = document.getElementById(`combo_${key}`).checked;
+  };
+  window.changeComboScoreType = function() {
+    comboScoreType = document.getElementById('combo_score_type').value;
+  };
+
+  function toggleElementVisibility(containerId, show) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (show) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+    // 차트 메모리 회수: 숨길 때 해당 컨테이너 내 캔버스 차트 destroy
+    if (!show) {
+      const canvases = el.querySelectorAll('canvas');
+      canvases.forEach(cv => window.analysisChart.destroyChart(cv.id));
+    }
+  }
+
+  function toggleGradePieCharts(btn) {
+    const containerId = 'gradeCharts';
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      // 초기 렌더링
+      const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
+      const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
+      const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
+      window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
+      window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
+      window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleExploreGradePieCharts(btn) {
+    const containerId = 'exploreCharts';
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
+      const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
+      window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
+      window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleScoreDistributionChart(scoreType, btn) {
+    const containerId = `chart_${scoreType}`;
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleExploreDistributionChart(scoreType, btn) {
+    const containerId = `exploreChart_${scoreType}`;
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleGrade12ComparisonChart(btn) {
+    const containerId = 'grade12Chart';
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      const subjects = ['국어', '수학', '영어'];
+      const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
+      const targetData = {};
+      const compareData = {};
+      subjects.forEach(subj => {
+        const key = subjectMap[subj];
+        targetData[key] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[key], gradeCuts.target.std[key]);
+        compareData[key] = get12GradeByRecordedGrade(compareParsedData, subj);
+      });
+      window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  // 7-2. 탐구 과목 영역별 점수 분포 그래프
+  function showExploreDistributionChart(scoreType) {
+    document.getElementById(`exploreChart_${scoreType}`).style.display = 'block';
+    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
+    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
+  }
+  
+  /**
+   * 그래프를 숨기는 함수
+   * @param {string} chartId - 숨길 그래프 컨테이너 ID
+   */
+  function hideChart(chartId) {
+    document.getElementById(chartId).style.display = 'none';
+  }
+  
+  // ------------------- 페이지 로드 시 자동 초기화 -------------------
+  // DOM이 완전히 로드된 후 탭 UI 초기화 실행
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(window.initAnalyzeTabs, 0);
+  } else {
+    window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
+  }
+
+  // ------------------- 과목 조합 통계 유틸 (중복 선언 방지)
+  if (typeof comboScoreType === 'undefined') {
+    var comboScoreType = 'auto';
+  }
+  if (typeof comboSelections === 'undefined') {
+    var comboSelections = { kor: true, math: true, explore: true };
+  }
+
+  function getUseStdForCombo() {
+    if (comboScoreType === '표준점수') return true;
+    if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
+    return (window.uploadedFileExt === 'xlsx');
+  }
+
+  function getScoreBySubjectAndType(s, subject) {
+    if (comboScoreType === '백분위') {
+      if (subject === '탐구') {
+        const a = Number(s.사회탐구?.백분위 ?? NaN);
+        const b = Number(s.과학탐구?.백분위 ?? NaN);
+        return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+      }
+      return Number(s[subject]?.백분위 ?? NaN);
+    }
+    const useStd = getUseStdForCombo();
+    return getScoreBySubject(s, subject, useStd);
+  }
+
+  function getScoreBySubject(s, subject, useStd) {
+    if (subject === '국어' || subject === '수학') {
+      return Number(useStd ? (s[subject]?.표준점수 ?? NaN) : (s[subject]?.원점수 ?? NaN));
+    }
+    if (subject === '탐구') {
+      const a = Number(useStd ? (s.사회탐구?.표준점수 ?? NaN) : (s.사회탐구?.원점수 ?? NaN));
+      const b = Number(useStd ? (s.과학탐구?.표준점수 ?? NaN) : (s.과학탐구?.원점수 ?? NaN));
+      return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+    }
+    return NaN;
+  }
+
+  function computeComboScores(data, combo) {
+    return data.map(s => combo.reduce((sum, subj) => {
+      const v = getScoreBySubjectAndType(s, subj);
+      return sum + (isNaN(v) ? 0 : v);
+    }, 0)).filter(v => !isNaN(v));
+  }
+
+  function summarizeScores(scores) {
+    if (!scores.length) return { avg: '-', top10: '-', top20: '-', top30: '-' };
+    const arr = [...scores].sort((a,b)=>b-a);
+    const avg = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
+    const pct = p => {
+      const c = Math.max(1, Math.ceil(arr.length*p));
+      return (arr.slice(0,c).reduce((a,b)=>a+b,0)/c).toFixed(2);
+    };
+    return { avg, top10: pct(0.1), top20: pct(0.2), top30: pct(0.3) };
+  }
+
+  function renderSubjectComboCardsHTML() {
+    const selected = buildSelectedCombo();
+    if (selected.length === 0) return '<p>조합을 선택하세요.</p>';
+    const combos = [ { key: 'custom', label: selected.join(' + '), subjects: selected } ];
+    let html = '<div class="subject-combo-box">';
+    combos.forEach(c => {
+      const scores = computeComboScores(parsedData, c.subjects);
+      const stats = summarizeScores(scores);
+      html += `
+      <div class="table-container p-12">
+        <h4 class="mt-6 mb-10">${c.label}</h4>
+        <table><thead><tr><th>지표</th><th>값</th></tr></thead>
+        <tbody>
+          <tr><td>평균</td><td>${stats.avg}</td></tr>
+          <tr><td>상위 10% 평균</td><td>${stats.top10}</td></tr>
+          <tr><td>상위 20% 평균</td><td>${stats.top20}</td></tr>
+          <tr><td>상위 30% 평균</td><td>${stats.top30}</td></tr>
+        </tbody></table>
+      </div>`;
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function buildSelectedCombo() {
+    const arr = [];
+    if (comboSelections.kor) arr.push('국어');
+    if (comboSelections.math) arr.push('수학');
+    if (comboSelections.explore) arr.push('탐구');
+    return arr;
+  }
+
+  window.renderAnalyzeCombos = function(){
+    // 전체 분석 섹션 내 조합 컨트롤/카드 영역 재구성
+    const container = document.getElementById('comboContainer');
+    if (container) {
+      container.innerHTML = renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML();
+    }
+  }
+
+  function renderSubjectComboControlsHTML() {
+    return `
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label><input type="checkbox" id="combo_kor" ${comboSelections.kor?'checked':''} onchange="toggleComboSubject('kor')">국어</label>
+        <label><input type="checkbox" id="combo_math" ${comboSelections.math?'checked':''} onchange="toggleComboSubject('math')">수학</label>
+        <label><input type="checkbox" id="combo_explore" ${comboSelections.explore?'checked':''} onchange="toggleComboSubject('explore')">탐구(2)</label>
+        <label>점수 기준
+          <select id="combo_score_type" onchange="changeComboScoreType()">
+            <option value="auto" ${comboScoreType==='auto'?'selected':''}>자동(파일 형식)</option>
+            <option value="표준점수" ${comboScoreType==='표준점수'?'selected':''}>표준점수</option>
+            <option value="원점수" ${comboScoreType==='원점수'?'selected':''}>원점수</option>
+            <option value="백분위" ${comboScoreType==='백분위'?'selected':''}>백분위</option>
+          </select>
+        </label>
+        <button class="action-btn-secondary" onclick="renderAnalyzeCombos()">적용</button>
+      </div>
+    </div>`;
+  }
+
+  window.toggleComboSubject = function(key) {
+    comboSelections[key] = document.getElementById(`combo_${key}`).checked;
+  };
+  window.changeComboScoreType = function() {
+    comboScoreType = document.getElementById('combo_score_type').value;
+  };
+
+  function toggleElementVisibility(containerId, show) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (show) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+    // 차트 메모리 회수: 숨길 때 해당 컨테이너 내 캔버스 차트 destroy
+    if (!show) {
+      const canvases = el.querySelectorAll('canvas');
+      canvases.forEach(cv => window.analysisChart.destroyChart(cv.id));
+    }
+  }
+
+  function toggleGradePieCharts(btn) {
+    const containerId = 'gradeCharts';
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      // 초기 렌더링
+      const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
+      const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
+      const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
+      window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
+      window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
+      window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleExploreGradePieCharts(btn) {
+    const containerId = 'exploreCharts';
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
+      const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
+      window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
+      window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleScoreDistributionChart(scoreType, btn) {
+    const containerId = `chart_${scoreType}`;
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleExploreDistributionChart(scoreType, btn) {
+    const containerId = `exploreChart_${scoreType}`;
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
+      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleGrade12ComparisonChart(btn) {
+    const containerId = 'grade12Chart';
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      const subjects = ['국어', '수학', '영어'];
+      const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
+      const targetData = {};
+      const compareData = {};
+      subjects.forEach(subj => {
+        const key = subjectMap[subj];
+        targetData[key] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[key], gradeCuts.target.std[key]);
+        compareData[key] = get12GradeByRecordedGrade(compareParsedData, subj);
+      });
+      window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
+      btn.textContent = '그래프 숨기기';
+    } else {
+      btn.textContent = '그래프 보기';
+    }
+  }
+
+  function toggleScoreCdfChart(scoreType, btn) {
+    const containerId = `cdf_${scoreType}`;
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      window.analysisChart.createCdfChart(`cdf_${scoreType}_korean`, parsedData, '국어', scoreType);
+      window.analysisChart.createCdfChart(`cdf_${scoreType}_math`, parsedData, '수학', scoreType);
+      btn.textContent = 'CDF 숨기기';
+    } else {
+      btn.textContent = '누적분포(CDF) 보기';
+    }
+  }
+
+  function toggleExploreCdfChart(scoreType, btn) {
+    const containerId = `cdfExplore_${scoreType}`;
+    const el = document.getElementById(containerId);
+    const willShow = el && el.classList.contains('hidden');
+    toggleElementVisibility(containerId, willShow);
+    if (willShow) {
+      window.analysisChart.createCdfChart(`cdfExplore_${scoreType}_social`, parsedData, '사회탐구', scoreType);
+      window.analysisChart.createCdfChart(`cdfExplore_${scoreType}_science`, parsedData, '과학탐구', scoreType);
+      btn.textContent = 'CDF 숨기기';
+    } else {
+      btn.textContent = '탐구 CDF 보기';
+    }
   }
