@@ -9,6 +9,110 @@ let analyzeTab = 'all'; // 현재 활성화된 탭 ('all': 전체분석, 'compar
 let compareParsedData = []; // 비교용 파일에서 파싱된 학생 데이터 배열
 let compareFileName = ''; // 업로드된 비교 파일명
 
+// 등급컷 입력(학년/대분류/하위과목) UI 상태
+let cutSelectedGrade = '1'; // '1' | '2' | '3'
+let cutMajorTab = ''; // 대분류 탭 키
+let cutSelections = {
+  // 2학년 하위 과목 선택 상태
+  g2: {
+    social: '생활과윤리',
+    science: '물리학 I'
+  },
+  // 3학년 하위 과목 선택 상태
+  g3: {
+    korean: '화법과작문',
+    math: '기하',
+    social: '생활과윤리',
+    science: '물리학 I'
+  }
+};
+
+// 과목 슬러그 유틸
+function subjectSlug(name){
+  const map = {
+    '국어':'korean','수학':'math','영어':'english','한국사':'history',
+    '생활과윤리':'soc_life_ethics','윤리와사상':'soc_ethics_thought','한국지리':'soc_k_geo','세계사':'soc_world_history',
+    '세계지리':'soc_world_geo','동아시아사':'soc_east_asia','정치와법':'soc_politics_law','경제':'soc_economy','사회문화':'soc_society_culture',
+    '물리학 I':'sci_phy1','화학 I':'sci_chem1','생명과학 I':'sci_bio1','지구과학 I':'sci_earth1',
+    '물리학 II':'sci_phy2','화학 II':'sci_chem2','생명과학 II':'sci_bio2','지구과학 II':'sci_earth2',
+    '화법과작문':'kor_speaking','언어와매체':'kor_language_media',
+    '기하':'math_geometry','미적분':'math_calculus','확률과통계':'math_probability'
+  };
+  return map[name] || name.replace(/\s+/g,'_');
+}
+
+function normalizeSubjectName(name){
+  if (!name) return '';
+  let n = String(name).trim();
+  n = n.replace(/[Ⅰ]/g, ' I').replace(/[Ⅱ]/g, ' II');
+  n = n.replace(/[·\u00B7]/g, '');
+  n = n.replace(/\s+/g, '');
+  // 특수 케이스 정규화
+  if (n === '사회문화') return '사회문화';
+  if (n === '정치와법') return '정치와법';
+  // 과학 I/II는 공백 추가 필요
+  n = n.replace('물리학I', '물리학 I').replace('물리학II','물리학 II')
+       .replace('화학I','화학 I').replace('화학II','화학 II')
+       .replace('생명과학I','생명과학 I').replace('생명과학II','생명과학 II')
+       .replace('지구과학I','지구과학 I').replace('지구과학II','지구과학 II');
+  return n;
+}
+
+function parseNumberCell(text){
+  const t = (text || '').toString().trim();
+  if (t === '-' || t === '') return NaN;
+  const v = Number(t);
+  return isNaN(v) ? NaN : v;
+}
+
+function fillForwardMissing(arr){
+  if (!Array.isArray(arr)) return arr;
+  const a = arr.slice();
+  for (let i = 0; i < a.length - 1; i++) {
+    if (isNaN(a[i]) || a[i] === undefined) {
+      a[i] = a[i+1];
+    }
+  }
+  if (isNaN(a[a.length-1]) || a[a.length-1] === undefined) a[a.length-1] = 0;
+  return a;
+}
+
+const SUBJECT_SETS = {
+  g2: {
+    basic: ['국어','수학','영어','한국사'],
+    social: ['생활과윤리','윤리와사상','한국지리','세계사','세계지리','동아시아사','정치와법','경제','사회문화'],
+    science: ['물리학 I','화학 I','생명과학 I','지구과학 I']
+  },
+  g3: {
+    kor: ['화법과작문','언어와매체'],
+    math: ['기하','미적분','확률과통계'],
+    engHis: ['영어','한국사'],
+    social: ['생활과윤리','윤리와사상','한국지리','세계사','세계지리','동아시아사','정치와법','경제','사회문화'],
+    science: ['물리학 I','화학 I','생명과학 I','지구과학 I','물리학 II','화학 II','생명과학 II','지구과학 II']
+  }
+};
+
+// details 저장소 초기화 헬퍼
+function ensureGradeCutDetails(){
+  if (!gradeCuts.details) gradeCuts.details = {};
+  if (!gradeCuts.details['2']) gradeCuts.details['2'] = { basic:{ raw:{}, std:{} }, social:{}, science:{} };
+  if (!gradeCuts.details['3']) gradeCuts.details['3'] = { kor:{}, math:{}, engHis:{ raw:{}, std:{} }, social:{}, science:{}, korCombined:{ std:[] }, mathCombined:{ std:[] } };
+  // 2학년 basic 과목 키 준비
+  SUBJECT_SETS.g2.basic.forEach(n=>{
+    const k = subjectSlug(n);
+    if (!gradeCuts.details['2'].basic.raw[k]) gradeCuts.details['2'].basic.raw[k] = [];
+    if (!gradeCuts.details['2'].basic.std[k]) gradeCuts.details['2'].basic.std[k] = [];
+  });
+  // 3학년 eng/his 준비
+  ['영어','한국사'].forEach(n=>{
+    const k = subjectSlug(n);
+    if (!gradeCuts.details['3'].engHis.raw[k]) gradeCuts.details['3'].engHis.raw[k] = [];
+    if (!gradeCuts.details['3'].engHis.std[k]) gradeCuts.details['3'].engHis.std[k] = [];
+  });
+  if (!gradeCuts.details['3'].korCombined) gradeCuts.details['3'].korCombined = { std: [] };
+  if (!gradeCuts.details['3'].mathCombined) gradeCuts.details['3'].mathCombined = { std: [] };
+}
+
 /**
  * 성적 분석 탭 전환 함수
  * @param {string} tab - 전환할 탭 ID ('all', 'compare', 'list')
@@ -36,11 +140,24 @@ function switchAnalyzeTab(tab) {
  * 원점수와 표준점수 등급컷 입력 폼을 동적으로 생성
  */
 function initCutTable() {
+  ensureGradeCutDetails();
   const cutTable = document.getElementById('cutInputTable');
-  const cut = gradeCuts.target; // 대상 등급컷 데이터 참조
-  
-  // 원점수 등급컷 테이블 HTML 생성
-  let html = `
+  const cut = gradeCuts.target;
+  let html = '';
+
+  // 학년은 EBSi 학년 드롭다운(#ebsiGrade)의 값을 사용 (D100/200/300)
+  const ebsiGradeEl = document.getElementById('ebsiGrade');
+  const gval = ebsiGradeEl?.value || '';
+  const gmap = { D100:'1', D200:'2', D300:'3' };
+  cutSelectedGrade = gmap[gval] || cutSelectedGrade || '1';
+  if (ebsiGradeEl && !ebsiGradeEl.dataset.cutInitBound) {
+    ebsiGradeEl.addEventListener('change', ()=> initCutTable());
+    ebsiGradeEl.dataset.cutInitBound = '1';
+  }
+
+  // 1학년: 기존 UI 그대로
+  if (cutSelectedGrade === '1') {
+    html += `
     <div class="grade-cut-tables-container">
       <div class="table-wrapper">
         <h4 class="mb-6">원점수 등급컷</h4>
@@ -56,25 +173,19 @@ function initCutTable() {
               <th>영어<br>(고정)</th>
             </tr>
           </thead>
-          <tbody>
-  `;
-  
-  // 1~8등급 원점수 입력 필드 생성
+            <tbody>`;
   for (let i = 1; i <= 8; i++) {
     html += `
       <tr>
         <td class="no-copy">${i}등급</td>
-        <td><input class="grade-cut-input" type="number" id="raw_korean${i}" required placeholder="점수" value="${cut.raw.korean[i-1]||''}"></td>
-        <td><input class="grade-cut-input" type="number" id="raw_math${i}" required placeholder="점수" value="${cut.raw.math[i-1]||''}"></td>
-        <td><input class="grade-cut-input" type="number" id="raw_social${i}" required placeholder="점수" value="${cut.raw.social[i-1]||''}"></td>
-        <td><input class="grade-cut-input" type="number" id="raw_science${i}" required placeholder="점수" value="${cut.raw.science[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="korean" data-level="${i}" id="raw_korean${i}" required placeholder="점수" value="${cut.raw.korean[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="math" data-level="${i}" id="raw_math${i}" required placeholder="점수" value="${cut.raw.math[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="social" data-level="${i}" id="raw_social${i}" required placeholder="점수" value="${cut.raw.social[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="science" data-level="${i}" id="raw_science${i}" required placeholder="점수" value="${cut.raw.science[i-1]||''}"></td>
         <td>${cut.raw.history?.[i-1]??''}</td>
         <td>${cut.raw.english?.[i-1]??''}</td>
-      </tr>
-    `;
+              </tr>`;
   }
-  
-  // 표준점수 등급컷 테이블 HTML 생성 (한국사, 영어 제외)
   html += `
           </tbody>
         </table>
@@ -91,30 +202,294 @@ function initCutTable() {
               <th>과학탐구<br>(탐구2)</th>
             </tr>
           </thead>
-          <tbody>
-  `;
-  
-  // 1~8등급 표준점수 입력 필드 생성
+            <tbody>`;
   for (let i = 1; i <= 8; i++) {
     html += `
       <tr>
         <td class="no-copy">${i}등급</td>
-        <td><input class="grade-cut-input" type="number" id="std_korean${i}" required placeholder="점수" value="${cut.std.korean[i-1]||''}"></td>
-        <td><input class="grade-cut-input" type="number" id="std_math${i}" required placeholder="점수" value="${cut.std.math[i-1]||''}"></td>
-        <td><input class="grade-cut-input" type="number" id="std_social${i}" required placeholder="점수" value="${cut.std.social[i-1]||''}"></td>
-        <td><input class="grade-cut-input" type="number" id="std_science${i}" required placeholder="점수" value="${cut.std.science[i-1]||''}"></td>
-      </tr>
-    `;
-  }
-  
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="korean" data-level="${i}" id="std_korean${i}" required placeholder="점수" value="${cut.std.korean[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="math" data-level="${i}" id="std_math${i}" required placeholder="점수" value="${cut.std.math[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="social" data-level="${i}" id="std_social${i}" required placeholder="점수" value="${cut.std.social[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="science" data-level="${i}" id="std_science${i}" required placeholder="점수" value="${cut.std.science[i-1]||''}"></td>
+              </tr>`;
+    }
   html += `
           </tbody>
         </table>
       </div>
-    </div>
-  `;
+      </div>`;
+
   cutTable.innerHTML = html;
-  // 입력값 실시간 유효성 검사 핸들러 부착
+    attachCutInputValidation();
+    return;
+  }
+
+  // 2·3학년: 대분류 탭 렌더
+  function renderMajorTabs(){
+    let tabsHtml = '<div class="mb-18">';
+    if (cutSelectedGrade === '2') {
+      const tabs = [
+        {key:'g2_basic', label:'국어/수학/영어/한국사'},
+        {key:'g2_social', label:'사회탐구'},
+        {key:'g2_science', label:'과학탐구'}
+      ];
+      if (!cutMajorTab) cutMajorTab = 'g2_basic';
+      tabs.forEach(t=>{
+        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab===t.key?'active':''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
+      });
+    } else if (cutSelectedGrade === '3') {
+      const tabs = [
+        {key:'g3_km', label:'국어/수학'},
+        {key:'g3_eh', label:'영어/한국사'},
+        {key:'g3_social', label:'사회탐구'},
+        {key:'g3_science', label:'과학탐구'}
+      ];
+      if (!cutMajorTab) cutMajorTab = 'g3_km';
+      tabs.forEach(t=>{
+        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab===t.key?'active':''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
+      });
+    }
+    tabsHtml += '</div>';
+    return tabsHtml;
+  }
+
+  function renderEightRowsCells(makeCell){
+    let rows = '';
+    for (let i = 1; i <= 8; i++) {
+      rows += `<tr><td class="no-copy">${i}등급</td>${makeCell(i)}</tr>`;
+    }
+    return rows;
+  }
+
+  function renderSingleSubjectTable(gradeKey, categoryKey, subjectName, rawArr, stdArr){
+    const subjKey = subjectSlug(subjectName);
+    let s = '';
+    s += '<div class="grade-cut-tables-container">';
+    s += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th><th>'+subjectName+'</th></tr></thead><tbody>';
+    s += renderEightRowsCells((i)=>{
+      const v = rawArr?.[i-1] ?? '';
+      return `<td><input class="grade-cut-input" type="number" data-grade="${gradeKey}" data-type="raw" data-category="${categoryKey}" data-subject="${subjKey}" data-level="${i}" id="raw_${subjKey}${i}" placeholder="점수" value="${v}"></td>`;
+    });
+    s += '</tbody></table></div>';
+    s += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th><th>'+subjectName+'</th></tr></thead><tbody>';
+    s += renderEightRowsCells((i)=>{
+      const v = stdArr?.[i-1] ?? '';
+      return `<td><input class="grade-cut-input" type="number" data-grade="${gradeKey}" data-type="std" data-category="${categoryKey}" data-subject="${subjKey}" data-level="${i}" id="std_${subjKey}${i}" placeholder="점수" value="${v}"></td>`;
+    });
+    s += '</tbody></table></div>';
+    s += '</div>';
+    return s;
+  }
+
+  // 본문 작성
+  html += renderMajorTabs();
+
+  // 콘텐츠 영역
+  if (cutSelectedGrade === '2') {
+    if (cutMajorTab === 'g2_basic') {
+      // 2학년: 국/수/영/한 한 화면 입력
+      const d = gradeCuts.details['2'];
+      const subjects = SUBJECT_SETS.g2.basic;
+      html += '<div class="grade-cut-tables-container">';
+      // 원점수 표
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> subjects.map(n=>{
+        const k = subjectSlug(n);
+        const v = d.basic.raw[k]?.[i-1] ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_basic\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수 표
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> subjects.map(n=>{
+        const k = subjectSlug(n);
+        const v = d.basic.std[k]?.[i-1] ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_basic\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      html += '</div>';
+    }
+    if (cutMajorTab === 'g2_social') {
+      const list = SUBJECT_SETS.g2.social;
+      const d = gradeCuts.details['2'].social;
+      // 원점수(스택 상단)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.raw?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수(스택 하단)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.std?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+    }
+    if (cutMajorTab === 'g2_science') {
+      const list = SUBJECT_SETS.g2.science;
+      const d = gradeCuts.details['2'].science;
+      html += '<div class="grade-cut-tables-container">';
+      // 원점수
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.raw?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.std?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      html += '</div>';
+    }
+  }
+
+  if (cutSelectedGrade === '3') {
+    if (cutMajorTab === 'g3_km') {
+      // 3학년 국어/수학: 과목별 원점수 + 통합 표준점수 한 표에 표시
+      const d3 = gradeCuts.details['3'];
+      const korRaw1 = d3.kor['kor_speaking']?.raw || [];
+      const korRaw2 = d3.kor['kor_language_media']?.raw || [];
+      const korStd = d3.korCombined.std || [];
+      const mRawP = d3.math['math_probability']?.raw || [];
+      const mRawC = d3.math['math_calculus']?.raw || [];
+      const mRawG = d3.math['math_geometry']?.raw || [];
+      const mStd = d3.mathCombined.std || [];
+
+      html += `<div class="grade-cut-tables-container">`;
+      // 국어 통합 표
+      html += `<div class="table-wrapper">
+        <h4 class="mb-6">국어 (3학년)</h4>
+        <table class="cut-table">
+          <thead>
+            <tr>
+              <th class="no-copy">등급</th>
+              <th>화법과작문(원)</th>
+              <th>언어와매체(원)</th>
+              <th>국어 표준점수</th>
+            </tr>
+          </thead>
+          <tbody>`;
+      for (let i = 1; i <= 8; i++) {
+        html += `<tr>
+          <td class="no-copy">${i}등급</td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_korean" data-subject="kor_speaking" data-level="${i}" id="raw_kor_speaking${i}" placeholder="점수" value="${korRaw1[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_korean" data-subject="kor_language_media" data-level="${i}" id="raw_kor_language_media${i}" placeholder="점수" value="${korRaw2[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="std" data-category="g3_kor_combined" data-subject="kor_combined" data-level="${i}" id="std_kor_combined${i}" placeholder="점수" value="${korStd[i-1]??''}"></td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+
+      // 수학 통합 표
+      html += `<div class="table-wrapper">
+        <h4 class="mb-6">수학 (3학년)</h4>
+        <table class="cut-table">
+          <thead>
+            <tr>
+              <th class="no-copy">등급</th>
+              <th>확률과통계(원)</th>
+              <th>미적분(원)</th>
+              <th>기하(원)</th>
+              <th>수학 표준점수</th>
+            </tr>
+          </thead>
+          <tbody>`;
+      for (let i = 1; i <= 8; i++) {
+        html += `<tr>
+          <td class="no-copy">${i}등급</td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_probability" data-level="${i}" id="raw_math_probability${i}" placeholder="점수" value="${mRawP[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_calculus" data-level="${i}" id="raw_math_calculus${i}" placeholder="점수" value="${mRawC[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_geometry" data-level="${i}" id="raw_math_geometry${i}" placeholder="점수" value="${mRawG[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="std" data-category="g3_math_combined" data-subject="math_combined" data-level="${i}" id="std_math_combined${i}" placeholder="점수" value="${mStd[i-1]??''}"></td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+
+      html += `</div>`;
+    }
+    if (cutMajorTab === 'g3_eh') {
+      // 영어/한국사 한 화면 입력
+      const d = gradeCuts.details['3'];
+      const subjects = SUBJECT_SETS.g3.engHis; // ['영어','한국사']
+      html += '<div class="grade-cut-tables-container">';
+      // 원점수 표
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> subjects.map(n=>{
+        const k = subjectSlug(n);
+        const v = d.engHis.raw[k]?.[i-1] ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"raw\" data-category=\"g3_eh\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수 표
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> subjects.map(n=>{
+        const k = subjectSlug(n);
+        const v = d.engHis.std[k]?.[i-1] ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"std\" data-category=\"g3_eh\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      html += '</div>';
+    }
+    if (cutMajorTab === 'g3_social') {
+      const list = SUBJECT_SETS.g3.social;
+      const d = gradeCuts.details['3'].social;
+      // 원점수(스택 상단)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.raw?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"raw\" data-category=\"g3_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수(스택 하단)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.std?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"std\" data-category=\"g3_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+    }
+    if (cutMajorTab === 'g3_science') {
+      const list = SUBJECT_SETS.g3.science;
+      const d = gradeCuts.details['3'].science;
+      // 원점수 (위)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.raw?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"raw\" data-category=\"g3_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수 (아래)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.std?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"std\" data-category=\"g3_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+    }
+  }
+
+  cutTable.innerHTML = html;
   attachCutInputValidation();
 }
 
@@ -126,31 +501,79 @@ function initCutTable() {
 window.applyCut = function() {
   showLoading();
   setTimeout(() => {
-    // 저장 전 유효성 검사
     const validation = validateCutInputs(true);
     if (!validation.valid) {
       hideLoading();
       showMessage('등급컷 입력 오류\n- ' + validation.errors[0]);
       return;
     }
-    const cut = gradeCuts.target;
     
-    // 1~8등급 원점수 및 표준점수 등급컷 저장
+    // 1학년: 기존 방식 저장
+    if (cutSelectedGrade === '1') {
+      const cut = gradeCuts.target;
     for (let i = 1; i <= 8; i++) {
-      // 원점수 등급컷 저장
       cut.raw.korean[i-1] = Number(document.getElementById('raw_korean'+i).value);
       cut.raw.math[i-1] = Number(document.getElementById('raw_math'+i).value);
       cut.raw.social[i-1] = Number(document.getElementById('raw_social'+i).value);
       cut.raw.science[i-1] = Number(document.getElementById('raw_science'+i).value);
-      
-      // 표준점수 등급컷 저장
       cut.std.korean[i-1] = Number(document.getElementById('std_korean'+i).value);
       cut.std.math[i-1] = Number(document.getElementById('std_math'+i).value);
       cut.std.social[i-1] = Number(document.getElementById('std_social'+i).value);
       cut.std.science[i-1] = Number(document.getElementById('std_science'+i).value);
+      }
+    } else {
+      // 2·3학년: 화면의 입력 필드를 스캔하여 details에 저장
+      ensureGradeCutDetails();
+      const inputs = document.querySelectorAll('#cutInputTable input.grade-cut-input');
+      inputs.forEach(inp => {
+        const gradeKey = inp.getAttribute('data-grade'); // '2' | '3'
+        const type = inp.getAttribute('data-type'); // 'raw' | 'std'
+        const category = inp.getAttribute('data-category');
+        const subj = inp.getAttribute('data-subject');
+        const lvl = Number(inp.getAttribute('data-level'));
+        const val = Number(inp.value);
+        if (isNaN(lvl)) return;
+        if (gradeKey === '2') {
+          if (category === 'g2_basic') {
+            const d = gradeCuts.details['2'];
+            if (!d.basic[type][subj]) d.basic[type][subj] = [];
+            d.basic[type][subj][lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g2_social') {
+            const k = subj; if (!gradeCuts.details['2'].social[k]) gradeCuts.details['2'].social[k] = { raw:[], std:[] };
+            gradeCuts.details['2'].social[k][type][lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g2_science') {
+            const k = subj; if (!gradeCuts.details['2'].science[k]) gradeCuts.details['2'].science[k] = { raw:[], std:[] };
+            gradeCuts.details['2'].science[k][type][lvl-1] = isNaN(val) ? undefined : val;
+          }
+        } else if (gradeKey === '3') {
+          if (category === 'g3_korean') {
+            const k = subj; if (!gradeCuts.details['3'].kor[k]) gradeCuts.details['3'].kor[k] = { raw:[], std:[] };
+            gradeCuts.details['3'].kor[k][type][lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g3_math') {
+            const k = subj; if (!gradeCuts.details['3'].math[k]) gradeCuts.details['3'].math[k] = { raw:[], std:[] };
+            gradeCuts.details['3'].math[k][type][lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g3_kor_combined') {
+            if (!gradeCuts.details['3'].korCombined) gradeCuts.details['3'].korCombined = { std: [] };
+            if (type === 'std') gradeCuts.details['3'].korCombined.std[lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g3_math_combined') {
+            if (!gradeCuts.details['3'].mathCombined) gradeCuts.details['3'].mathCombined = { std: [] };
+            if (type === 'std') gradeCuts.details['3'].mathCombined.std[lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g3_eh') {
+            const d = gradeCuts.details['3'];
+            if (!d.engHis[type][subj]) d.engHis[type][subj] = [];
+            d.engHis[type][subj][lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g3_social') {
+            const k = subj; if (!gradeCuts.details['3'].social[k]) gradeCuts.details['3'].social[k] = { raw:[], std:[] };
+            gradeCuts.details['3'].social[k][type][lvl-1] = isNaN(val) ? undefined : val;
+          } else if (category === 'g3_science') {
+            const k = subj; if (!gradeCuts.details['3'].science[k]) gradeCuts.details['3'].science[k] = { raw:[], std:[] };
+            gradeCuts.details['3'].science[k][type][lvl-1] = isNaN(val) ? undefined : val;
+          }
+        }
+      });
     }
-    
-    showMessage('등급컷이 저장되었습니다. 데이터 분석에 적용됩니다.');
+
+    showMessage('등급컷이 저장되었습니다. 데이터 입력이 반영되었습니다.');
     hideLoading();
   }, 300);
 };
@@ -164,60 +587,46 @@ function attachCutInputValidation() {
 }
 
 function validateCutInputs(applyStyles = false) {
-  const subjectsRaw = ['korean','math','social','science'];
-  const subjectsStd = ['korean','math','social','science'];
   const errors = [];
-
-  // 도우미: 입력 엘리먼트 가져오기
-  const getVal = (id) => {
-    const el = document.getElementById(id);
-    return el ? Number(el.value) : NaN;
-  };
-  const mark = (id, ok) => {
-    if (!applyStyles) return;
-    const el = document.getElementById(id);
-    if (!el) return;
+  const markEl = (el, ok) => {
+    if (!applyStyles || !el) return;
     el.style.borderColor = ok ? '' : '#dc3545';
     el.style.boxShadow = ok ? '' : '0 0 0 2px rgba(220,53,69,0.15)';
   };
 
-  // 원점수: 0~100, 단조감소(1등급 >= 2등급 ...)
-  subjectsRaw.forEach(key => {
-    let prev = Infinity;
-    for (let i = 1; i <= 8; i++) {
-      const id = `raw_${key}${i}`;
-      const v = getVal(id);
-      const inRange = !isNaN(v) && v >= 0 && v <= 100;
-      mark(id, inRange);
-      if (!inRange) {
-        errors.push(`[원점수/${key}] ${i}등급 값이 유효하지 않습니다 (0~100)`);
-      }
-      if (v > prev) {
-        mark(id, false);
-        errors.push(`[원점수/${key}] ${i-1}등급 ≥ ${i}등급 규칙 위반`);
-      }
-      prev = isNaN(v) ? prev : v;
-    }
+  // 그룹핑: raw/std 각각에 대해 subject별로 1~8 체크
+  const allInputs = Array.from(document.querySelectorAll('#cutInputTable input.grade-cut-input'));
+  const groups = { raw: {}, std: {} };
+  allInputs.forEach(inp => {
+    const type = inp.getAttribute('data-type');
+    const subj = inp.getAttribute('data-subject');
+    const level = Number(inp.getAttribute('data-level'));
+    if (!groups[type][subj]) groups[type][subj] = {};
+    groups[type][subj][level] = inp;
   });
 
-  // 표준점수: 0~200, 단조감소
-  subjectsStd.forEach(key => {
+  // 원점수 0~100, 표준점수 0~200, 단조감소
+  const validateGroup = (type, rangeMax) => {
+    Object.keys(groups[type]).forEach(subj => {
     let prev = Infinity;
     for (let i = 1; i <= 8; i++) {
-      const id = `std_${key}${i}`;
-      const v = getVal(id);
-      const inRange = !isNaN(v) && v >= 0 && v <= 200;
-      mark(id, inRange);
-      if (!inRange) {
-        errors.push(`[표준점수/${key}] ${i}등급 값이 유효하지 않습니다 (0~200)`);
-      }
-      if (v > prev) {
-        mark(id, false);
-        errors.push(`[표준점수/${key}] ${i-1}등급 ≥ ${i}등급 규칙 위반`);
+        const el = groups[type][subj][i];
+        if (!el) continue;
+        const v = Number(el.value);
+        const inRange = !isNaN(v) && v >= 0 && v <= rangeMax;
+        markEl(el, inRange);
+        if (!inRange) errors.push(`[${type==='raw'?'원점수':'표준점수'}/${subj}] ${i}등급 값이 유효하지 않습니다 (0~${rangeMax})`);
+        if (!isNaN(v) && v > prev) {
+          markEl(el, false);
+          errors.push(`[${type==='raw'?'원점수':'표준점수'}/${subj}] ${i-1}등급 ≥ ${i}등급 규칙 위반`);
       }
       prev = isNaN(v) ? prev : v;
     }
   });
+  };
+
+  validateGroup('raw', 100);
+  validateGroup('std', 200);
 
   return { valid: errors.length === 0, errors };
 }
@@ -447,11 +856,34 @@ async function loadEbsiGradeCuts() {
   showLoading();
   
   // EBSi API 요청 설정 (과목별로 분리된 요청)
-  const reqs = [
-    {subjectId: '17012,17014,17020,110001', ord: 1, key: 'main'}, // 국어,수학,영어,한국사
-    {subjectId: '140072', ord: 2, key: 'social'}, // 사회탐구
-    {subjectId: '140073', ord: 3, key: 'science'} // 과학탐구
-  ];
+  let reqs = [];
+  if (grade === 'D100') {
+    // 1학년: 현행 (기존 subjectId)
+    reqs = [
+      {subjectId: '17012,17014,17020,110001', ord: 1, key: 'main'},
+      {subjectId: '140072', ord: 2, key: 'social'},
+      {subjectId: '140073', ord: 3, key: 'science'}
+    ];
+  } else if (grade === 'D200') {
+    // 2학년: 국수영한 / 사회(9과목) / 과학(4과목)
+    reqs = [
+      {subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main'},
+      {subjectId: '17029,17037,17038,50613,50615,50616,50617,50618,140109', ord: 2, key: 'g2_social'},
+      {subjectId: '17041,17042,17043,140113', ord: 3, key: 'g2_science'}
+    ];
+  } else if (grade === 'D300') {
+    // 3학년: 국수영한 / 사회 / 과학 (제공 subjectId)
+    reqs = [
+      {subjectId: '63004,80003,140117,140119', ord: 1, key: 'g3_main'},
+      {subjectId: '141,142,146,63001,63002,63003,66001,66002,140112', ord: 2, key: 'g3_social'},
+      {subjectId: '154,155,156,157,158,159,140115,140116', ord: 3, key: 'g3_science'}
+    ];
+  } else {
+    // 3학년은 추후 보강 예정
+    reqs = [
+      {subjectId: '17012,17014,17020,110001', ord: 1, key: 'main'}
+    ];
+  }
   
   let cuts = { korean: [], math: [], english: [], history: [], social: [], science: [] };
   let stds = { korean: [], math: [], english: [], history: [], social: [], science: [] };
@@ -464,7 +896,8 @@ async function loadEbsiGradeCuts() {
       form.append('irecord', irecord);
       form.append('ord', req.ord);
       
-      const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrieveGrdCutList.ajax', {
+      const url = 'https://www.ebsi.co.kr/ebs/xip/xipa/retrieveGrdCutList.ajax';
+      const res = await fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: form.toString()
@@ -474,7 +907,7 @@ async function loadEbsiGradeCuts() {
       const temp = document.createElement('div');
       temp.innerHTML = html;
       
-      // 메인 과목 (국어, 수학, 영어, 한국사) 처리
+      // 메인 과목 (국어, 수학, 영어, 한국사) 처리 - 1학년
       if (req.key === 'main') {
         const col6s = temp.querySelectorAll('.col_6');
         ['korean','math','english','history'].forEach((subj, idx) => {
@@ -498,17 +931,199 @@ async function loadEbsiGradeCuts() {
           stds[req.key][i-1] = Number(trs?.[i]?.children[3]?.innerText || 0);
         }
       }
+      // 3학년: 국/수/영/한 (특수 테이블)
+      else if (req.key === 'g3_main') {
+        ensureGradeCutDetails();
+        const d3 = gradeCuts.details['3'];
+        const blocks = temp.querySelectorAll('.col_6');
+        blocks.forEach(col => {
+          const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+          if (nameKor === '국어') {
+            const trs = col.querySelectorAll('table.kor_table tbody tr');
+            const raw1 = [], raw2 = [], std = [];
+            // tr 인덱스: 최고점 + 1~8 등급 → 등급행은 1..8 순으로 존재
+            let gradeIdx = 0;
+            trs.forEach(tr => {
+              const tds = tr.children;
+              if (!tds || tds.length < 5) return;
+              const gtxt = (tds[0]?.innerText || '').trim();
+              if (!/^(최고점|[1-8])$/.test(gtxt)) return;
+              if (gtxt === '최고점') return;
+              gradeIdx++;
+              raw1[gradeIdx-1] = parseNumberCell(tds[1]?.innerText);
+              raw2[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
+              std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+            });
+            d3.kor['kor_speaking'] = d3.kor['kor_speaking'] || { raw: [], std: [] };
+            d3.kor['kor_language_media'] = d3.kor['kor_language_media'] || { raw: [], std: [] };
+            d3.kor['kor_speaking'].raw = raw1.map(v => isNaN(v)?0:v);
+            d3.kor['kor_language_media'].raw = raw2.map(v => isNaN(v)?0:v);
+            d3.korCombined.std = std.map(v => isNaN(v)?0:v);
+          } else if (nameKor === '수학') {
+            const trs = col.querySelectorAll('table.math_table tbody tr');
+            const rp = [], rc = [], rg = [], std = [];
+            let gradeIdx = 0;
+            trs.forEach(tr => {
+              const tds = tr.children;
+              if (!tds || tds.length < 6) return;
+              const gtxt = (tds[0]?.innerText || '').trim();
+              if (!/^(최고점|[1-8])$/.test(gtxt)) return;
+              if (gtxt === '최고점') return;
+              gradeIdx++;
+              rp[gradeIdx-1] = parseNumberCell(tds[1]?.innerText);
+              rc[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
+              rg[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+              std[gradeIdx-1] = parseNumberCell(tds[4]?.innerText);
+            });
+            d3.math['math_probability'] = d3.math['math_probability'] || { raw: [], std: [] };
+            d3.math['math_calculus'] = d3.math['math_calculus'] || { raw: [], std: [] };
+            d3.math['math_geometry'] = d3.math['math_geometry'] || { raw: [], std: [] };
+            d3.math['math_probability'].raw = rp.map(v => isNaN(v)?0:v);
+            d3.math['math_calculus'].raw = rc.map(v => isNaN(v)?0:v);
+            d3.math['math_geometry'].raw = rg.map(v => isNaN(v)?0:v);
+            d3.mathCombined.std = std.map(v => isNaN(v)?0:v);
+          } else if (nameKor === '영어' || nameKor === '한국사') {
+            const slug = subjectSlug(nameKor);
+            const trs = col.querySelectorAll('tbody tr');
+            const raw = [], std = [];
+            let gradeIdx = 0;
+            trs.forEach(tr => {
+              const tds = tr.children;
+              if (!tds || tds.length < 5) return;
+              const gtxt = (tds[0]?.innerText || '').trim();
+              if (!/^(최고점|[1-8])$/.test(gtxt)) return;
+              if (gtxt === '최고점') return;
+              gradeIdx++;
+              raw[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
+              std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+            });
+            d3.engHis.raw[slug] = raw.map(v => isNaN(v)?0:v);
+            d3.engHis.std[slug] = std.map(v => isNaN(v)?0:v);
+          }
+        });
+      }
+      // 3학년: 사회 9과목
+      else if (req.key === 'g3_social') {
+        ensureGradeCutDetails();
+        const d3 = gradeCuts.details['3'];
+        const blocks = temp.querySelectorAll('.col_6');
+        blocks.forEach(col => {
+          const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+          if (!nameKor) return;
+          const slug = subjectSlug(nameKor);
+          if (!d3.social[slug]) d3.social[slug] = { raw: [], std: [] };
+          const trs = col.querySelectorAll('tbody tr');
+          const raw = [], std = [];
+          let gradeIdx = 0;
+          trs.forEach(tr => {
+            const tds = tr.children;
+            if (!tds || tds.length < 5) return;
+            const gtxt = (tds[0]?.innerText || '').trim();
+            if (!/^(최고점|[1-8])$/.test(gtxt)) return;
+            if (gtxt === '최고점') return;
+            gradeIdx++;
+            raw[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
+            std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+          });
+          d3.social[slug].raw = fillForwardMissing(raw);
+          d3.social[slug].std = fillForwardMissing(std);
+        });
+      }
+      // 3학년: 과학 8과목 (I/II 포함) + '-' 전파 반영
+      else if (req.key === 'g3_science') {
+        ensureGradeCutDetails();
+        const d3 = gradeCuts.details['3'];
+        const blocks = temp.querySelectorAll('.col_6');
+        blocks.forEach(col => {
+          const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+          if (!nameKor) return;
+          const slug = subjectSlug(nameKor);
+          if (!d3.science[slug]) d3.science[slug] = { raw: [], std: [] };
+          const trs = col.querySelectorAll('tbody tr');
+          const raw = [], std = [];
+          let gradeIdx = 0;
+          trs.forEach(tr => {
+            const tds = tr.children;
+            if (!tds || tds.length < 5) return;
+            const gtxt = (tds[0]?.innerText || '').trim();
+            if (!/^(최고점|[1-8])$/.test(gtxt)) return;
+            if (gtxt === '최고점') return;
+            gradeIdx++;
+            raw[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
+            std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+          });
+          d3.science[slug].raw = fillForwardMissing(raw);
+          d3.science[slug].std = fillForwardMissing(std);
+        });
+      }
+
+      // 2학년: 국/수/영/한 일괄 (g2_main)
+      else if (req.key === 'g2_main') {
+        ensureGradeCutDetails();
+        const d2 = gradeCuts.details['2'];
+        const blocks = temp.querySelectorAll('.col_6');
+        blocks.forEach(col => {
+          const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+          if (!nameKor) return;
+          const slug = subjectSlug(nameKor);
+          if (!['korean','math','english','history'].includes(slug)) return;
+          if (!d2.basic.raw[slug]) d2.basic.raw[slug] = [];
+          if (!d2.basic.std[slug]) d2.basic.std[slug] = [];
+          const trs = col.querySelectorAll('tbody tr');
+          for (let i = 1; i <= 8; i++) {
+            d2.basic.raw[slug][i-1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
+            d2.basic.std[slug][i-1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+          }
+        });
+      }
+      // 2학년: 사회 9과목 (g2_social)
+      else if (req.key === 'g2_social') {
+        ensureGradeCutDetails();
+        const d2 = gradeCuts.details['2'];
+        const blocks = temp.querySelectorAll('.col_6');
+        blocks.forEach(col => {
+          const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+          if (!nameKor) return;
+          const slug = subjectSlug(nameKor);
+          if (!d2.social[slug]) d2.social[slug] = { raw: [], std: [] };
+          const trs = col.querySelectorAll('tbody tr');
+          for (let i = 1; i <= 8; i++) {
+            d2.social[slug].raw[i-1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
+            d2.social[slug].std[i-1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+          }
+        });
+      }
+      // 2학년: 과학 4과목 (g2_science)
+      else if (req.key === 'g2_science') {
+        ensureGradeCutDetails();
+        const d2 = gradeCuts.details['2'];
+        const blocks = temp.querySelectorAll('.col_6');
+        blocks.forEach(col => {
+          const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+          if (!nameKor) return;
+          const slug = subjectSlug(nameKor);
+          if (!d2.science[slug]) d2.science[slug] = { raw: [], std: [] };
+          const trs = col.querySelectorAll('tbody tr');
+          for (let i = 1; i <= 8; i++) {
+            d2.science[slug].raw[i-1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
+            d2.science[slug].std[i-1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+          }
+        });
+      }
     }
     
     // 불러온 등급컷 데이터를 전역 변수에 저장
     const cut = gradeCuts.target;
+    if (grade === 'D100') {
     ['korean','math','english','history','social','science'].forEach(subj => {
       cut.raw[subj] = cuts[subj] || [];
       cut.std[subj] = stds[subj] || [];
     });
-    
-    // 연도 정보 저장
     cut.year = year;
+    } else if (grade === 'D200') {
+      // 이미 루프 내에서 details['2']에 저장됨
+      cut.year = year;
+    }
     
     // 등급컷 테이블 업데이트
     initCutTable();
@@ -560,21 +1175,24 @@ function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
   
   // 각 학생의 점수를 등급컷과 비교하여 등급 산출
   parsed.forEach(s => {
-    const score = Number(s[subject]?.[scoreField] ?? NaN);
-    if (!isNaN(score)) {
-      let grade = 9; // 기본값: 9등급
-      
-      // 1~8등급 등급컷과 비교 (높은 등급부터)
-      for (let i = 0; i < 8; i++) {
-        if (score >= (cuts[i] || 0)) {
-          grade = i + 1;
-          break;
-        }
+    const rawVal = s?.[subject]?.[scoreField];
+    if (rawVal === undefined || rawVal === null) return; // 점수 없음
+    const text = String(rawVal).trim();
+    if (text === '') return; // 빈 문자열 → 미응시로 간주
+    const score = Number(text);
+    if (isNaN(score)) return;
+
+    let grade = 9; // 기본값: 9등급
+    // 1~8등급 등급컷과 비교 (높은 등급부터)
+    for (let i = 0; i < 8; i++) {
+      if (score >= (cuts[i] || 0)) {
+        grade = i + 1;
+        break;
       }
-      
-      dist[grade - 1]++; // 해당 등급 인원수 증가
-      total++; // 총 인원수 증가
     }
+
+    dist[grade - 1]++; // 해당 등급 인원수 증가
+    total++; // 총 인원수 증가
   });
   
   // 등급별 비율 계산 (백분율)
@@ -645,18 +1263,22 @@ function get12GradeByCut(parsed, subject, rawCuts, stdCuts) {
   
   // 등급 산출 및 집계
   parsed.forEach(s => {
-    const score = Number(s[subject]?.[scoreField] ?? NaN);
-    if (!isNaN(score)) {
-      let grade = 9;
-      for (let i = 0; i < 8; i++) {
-        if (score >= (cuts[i] || 0)) { 
-          grade = i+1; 
-          break; 
-        }
+    const rawVal = s?.[subject]?.[scoreField];
+    if (rawVal === undefined || rawVal === null) return; // 점수 없음
+    const text = String(rawVal).trim();
+    if (text === '') return; // 빈 문자열 → 미응시로 간주
+    const score = Number(text);
+    if (isNaN(score)) return;
+
+    let grade = 9;
+    for (let i = 0; i < 8; i++) {
+      if (score >= (cuts[i] || 0)) { 
+        grade = i+1; 
+        break; 
       }
-      dist[grade-1]++;
-      total++;
     }
+    dist[grade-1]++;
+    total++;
   });
   
   const cnt = dist[0] + dist[1]; // 1등급 + 2등급 인원수
