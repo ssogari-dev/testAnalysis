@@ -15,6 +15,39 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
 </head>
 <body>
+  <button id="settingsToggle" class="settings-fab" aria-label="설정 열기">⚙</button>
+  <aside id="settingsSidebar" class="settings-sidebar" aria-label="설정 사이드바">
+    <div class="settings-header">
+      <h3>설정</h3>
+      <button id="settingsClose" class="copy-btn btn-sm">닫기</button>
+    </div>
+    <div class="settings-section">
+      <h4>파일 업로드</h4>
+      <div class="settings-row">
+        <button class="action-btn-secondary" onclick="document.getElementById('csvFile').click()">대상 파일 선택</button>
+        <button class="action-btn" onclick="parseFile()">대상 업로드/파싱</button>
+      </div>
+      <div class="settings-row">
+        <button class="action-btn-secondary" onclick="document.getElementById('compareUploadInput')?.click()">비교 파일 선택</button>
+        <button class="action-btn" onclick="document.getElementById('showCompareBtn')?.click()">비교 결과 보기</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>분석 옵션 (대상 파일)</h4>
+      <div class="settings-help">CSV일 때만 활성화됩니다.</div>
+      <label class="settings-toggle"><input type="checkbox" id="optTargetUseStdKorMath"> 국어/수학 표준점수 사용 <span class="help-badge" data-help-key="target-std-km">?</span></label>
+      <label class="settings-toggle"><input type="checkbox" id="optTargetUseStdExplore"> 탐구 표준점수 사용 <span class="help-badge" data-help-key="target-std-exp">?</span></label>
+      <label class="settings-toggle"><input type="checkbox" id="optTargetUseRecorded"> 기록 등급 사용 <span class="help-badge" data-help-key="target-recorded">?</span></label>
+    </div>
+
+    <div class="settings-section">
+      <h4>분석 옵션 (비교 파일)</h4>
+      <div class="settings-help">CSV일 때만 활성화됩니다.</div>
+      <label class="settings-toggle"><input type="checkbox" id="optCompareUseStdKorMath"> 국어/수학 표준점수 사용 <span class="help-badge" data-help-key="compare-std-km">?</span></label>
+      <label class="settings-toggle"><input type="checkbox" id="optCompareUseStdExplore"> 탐구 표준점수 사용 <span class="help-badge" data-help-key="compare-std-exp">?</span></label>
+      <label class="settings-toggle"><input type="checkbox" id="optCompareUseRecorded"> 기록 등급 사용 <span class="help-badge" data-help-key="compare-recorded">?</span></label>
+    </div>
+  </aside>
   <!-- 정보 버튼 -->
   <button id="infoButton" class="info-button">ⓘ 안내 / 문의</button>
   
@@ -162,6 +195,155 @@
       parseEBSiGradeCutHtml(html, currentCutTab);
       closePastePopup();
     }
+    // 설정 사이드바 동작 및 옵션 바인딩
+    document.addEventListener('DOMContentLoaded', function(){
+      const fab = document.getElementById('settingsToggle');
+      const side = document.getElementById('settingsSidebar');
+      const closeBtn = document.getElementById('settingsClose');
+      const tStdKM = document.getElementById('optTargetUseStdKorMath');
+      const tStdEXP = document.getElementById('optTargetUseStdExplore');
+      const tRec = document.getElementById('optTargetUseRecorded');
+      const cStdKM = document.getElementById('optCompareUseStdKorMath');
+      const cStdEXP = document.getElementById('optCompareUseStdExplore');
+      const cRec = document.getElementById('optCompareUseRecorded');
+
+      function setEnabled(el, enabled){
+        if (!el) return;
+        el.disabled = !enabled;
+        el.parentElement.style.opacity = enabled ? 1 : 0.55;
+        el.parentElement.style.cursor = enabled ? 'pointer' : 'not-allowed';
+      }
+
+      const syncDisableByExt = () => {
+        const tIsCsv = (window.uploadedFileExt === 'csv');
+        const cIsCsv = (window.compareUploadedFileExt === 'csv');
+        [tStdKM,tStdEXP,tRec].forEach(el=> setEnabled(el, tIsCsv));
+        [cStdKM,cStdEXP,cRec].forEach(el=> setEnabled(el, cIsCsv));
+      };
+
+      const syncFromState = () => {
+        if (tStdKM) tStdKM.checked = !!window.csvTargetUseStdKorMath;
+        if (tStdEXP) tStdEXP.checked = !!window.csvTargetUseStdExplore;
+        if (tRec) tRec.checked = !!window.csvTargetUseRecorded;
+        if (cStdKM) cStdKM.checked = !!window.csvCompareUseStdKorMath;
+        if (cStdEXP) cStdEXP.checked = !!window.csvCompareUseStdExplore;
+        if (cRec) cRec.checked = !!window.csvCompareUseRecorded;
+        syncDisableByExt();
+      };
+      const handleBlocked = (e) => {
+        const isTarget = [tStdKM,tStdEXP,tRec].includes(e.target);
+        const isCsv = isTarget ? (window.uploadedFileExt === 'csv') : (window.compareUploadedFileExt === 'csv');
+        if (!isCsv) {
+          e.preventDefault();
+          showMessage('아직 XLSX에 맞는 기능을 개발 중이에요. 조금만 더 기다려주세요!');
+          return false;
+        }
+        return true;
+      };
+
+      const applyAndRefresh = () => {
+        if (tStdKM) window.csvTargetUseStdKorMath = !!tStdKM.checked;
+        if (tStdEXP) window.csvTargetUseStdExplore = !!tStdEXP.checked;
+        if (tRec) window.csvTargetUseRecorded = !!tRec.checked;
+        if (cStdKM) window.csvCompareUseStdKorMath = !!cStdKM.checked;
+        if (cStdEXP) window.csvCompareUseStdExplore = !!cStdEXP.checked;
+        if (cRec) window.csvCompareUseRecorded = !!cRec.checked;
+        // 현재 활성 섹션에 맞춰 재렌더
+        const active = document.querySelector('section.content-section.active')?.id;
+        if (active === 'analyze') { window.analyzeAll?.(); }
+        if (active === 'view') { window.showStudentData?.(); }
+        if (active === 'compare') { window.renderCompareResult?.(); }
+      };
+      fab?.addEventListener('click', ()=>{ side.classList.add('open'); syncFromState(); });
+      closeBtn?.addEventListener('click', ()=> side.classList.remove('open'));
+      [tStdKM,tStdEXP,tRec,cStdKM,cStdEXP,cRec].forEach(el=>{
+        el?.addEventListener('click', (e)=>{ if (!handleBlocked(e)) return; });
+        el?.addEventListener('change', applyAndRefresh);
+      });
+      // 초기 동기화
+      syncFromState();
+
+      // 클릭 팝오버: 상세 가이드
+      const HELP_MAP = {
+        'target-std-km': {
+          title: '대상: 국어/수학 표준점수 사용',
+          body: 'CSV 대상 데이터에서 국어·수학의 등급 산출을 표준점수 컷으로 계산합니다. 영어/한국사는 원점수 기준을 유지합니다. 평균/상위% 표는 점수 자체에 기반하여 본 옵션과 무관합니다.'
+        },
+        'target-std-exp': {
+          title: '대상: 탐구 표준점수 사용',
+          body: 'CSV 대상 데이터에서 사회·과학탐구의 등급 산출을 표준점수 컷으로 계산합니다. 기록 등급 사용이 켜져 있으면 기록 등급이 우선합니다.'
+        },
+        'target-recorded': {
+          title: '대상: 기록 등급 사용',
+          body: 'CSV 대상 데이터에 이미 들어있는 등급으로 등급 분포/1·2등급 비율/명단 등급을 집계합니다. 등급컷 기반 계산을 사용하지 않습니다.'
+        },
+        'compare-std-km': {
+          title: '비교: 국어/수학 표준점수 사용',
+          body: 'CSV 비교 데이터에서 국어·수학의 등급 산출을 표준점수 컷으로 계산합니다(비교측만 적용). 영어/한국사는 원점수 기준입니다.'
+        },
+        'compare-std-exp': {
+          title: '비교: 탐구 표준점수 사용',
+          body: 'CSV 비교 데이터에서 사회·과학탐구의 등급 산출을 표준점수 컷으로 계산합니다(비교측만 적용).'
+        },
+        'compare-recorded': {
+          title: '비교: 기록 등급 사용',
+          body: 'CSV 비교 데이터에 들어있는 등급으로 비교측의 등급 분포/1·2등급 비율을 집계합니다. 등급컷 계산을 사용하지 않습니다.'
+        }
+      };
+      let currentPopover;
+      function closePopover(){
+        if (currentPopover && currentPopover.parentNode) currentPopover.parentNode.removeChild(currentPopover);
+        currentPopover = null;
+      }
+      function openPopover(anchorEl, key){
+        closePopover();
+        const spec = HELP_MAP[key];
+        if (!spec) return;
+        const pop = document.createElement('div');
+        pop.className = 'help-popover';
+        pop.innerHTML = `<button class="close" aria-label="닫기">×</button><h4>${spec.title}</h4><p>${spec.body}</p>`;
+        document.body.appendChild(pop);
+        // 위치 계산: 앵커 주변, 화면 밖으로 벗어나지 않게 보정
+        const r = anchorEl.getBoundingClientRect();
+        const margin = 8;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+        const popW = pop.offsetWidth;
+        const popH = pop.offsetHeight;
+        // 기본: 아래쪽 중앙
+        let top = scrollY + r.bottom + margin;
+        let left = scrollX + (r.left + r.width/2) - popW/2;
+        // 아래 공간 부족하면 위로 배치
+        if (r.bottom + margin + popH > vh - margin) {
+          top = scrollY + r.top - popH - margin;
+        }
+        // 세로 클램프
+        const minTop = scrollY + margin;
+        const maxTop = scrollY + vh - popH - margin;
+        if (top < minTop) top = minTop;
+        if (top > maxTop) top = maxTop;
+        // 가로 클램프
+        const minLeft = scrollX + margin;
+        const maxLeft = scrollX + vw - popW - margin;
+        if (left < minLeft) left = minLeft;
+        if (left > maxLeft) left = maxLeft;
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        pop.querySelector('.close').addEventListener('click', closePopover);
+        currentPopover = pop;
+      }
+      document.querySelectorAll('.help-badge[data-help-key]')?.forEach(el=>{
+        el.addEventListener('click', (e)=>{
+          const key = e.currentTarget.getAttribute('data-help-key');
+          openPopover(e.currentTarget, key);
+        });
+      });
+      document.addEventListener('click', (e)=>{
+        if (currentPopover && !currentPopover.contains(e.target) && !e.target.closest('.help-badge')) closePopover();
+      });
+    });
   </script>
 </body>
 </html>

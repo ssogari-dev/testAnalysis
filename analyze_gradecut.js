@@ -1146,23 +1146,31 @@ async function loadEbsiGradeCuts() {
  * @returns {Object} 등급별 인원수, 비율, 총인원 정보
  */
 function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
-  const useStd = (window.uploadedFileExt === 'xlsx'); // 파일 형식에 따른 점수 타입 결정
+  // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
+  if (window.uploadedFileExt === 'csv' && (window.csvTargetUseRecorded === true)) {
+    return getGradeDistByRecordedGrade(parsed, subject);
+  }
+
+  // 점수 타입 결정 (XLSX는 기본 표준, CSV는 옵션으로 표준 허용)
   let cuts, scoreField;
-  
-  // 파일 형식과 과목에 따른 등급컷 및 점수 필드 결정
-  if (useStd) {
+  const isXlsx = (window.uploadedFileExt === 'xlsx');
+  const isCsv = (window.uploadedFileExt === 'csv');
+  const csvUseStdKorMath = !!window.csvTargetUseStdKorMath;
+  const csvUseStdExplore = !!window.csvTargetUseStdExplore;
+
+  if (isXlsx) {
     // XLSX: 영어/한국사는 원점수, 나머지는 표준점수 사용
     if (subject === '영어' || subject === '한국사') {
-      cuts = rawCuts;
-      scoreField = '원점수';
+      cuts = rawCuts; scoreField = '원점수';
     } else {
-      cuts = stdCuts;
-      scoreField = '표준점수';
+      cuts = stdCuts; scoreField = '표준점수';
     }
   } else {
-    // CSV: 모든 과목 원점수 사용
-    cuts = rawCuts;
-    scoreField = '원점수';
+    // CSV: 과목군별 옵션에 따라 표준점수 사용, 영어/한국사는 원점수 고정
+    if (subject === '영어' || subject === '한국사') { cuts = rawCuts; scoreField = '원점수'; }
+    else if ((subject === '국어' || subject === '수학') && isCsv && csvUseStdKorMath) { cuts = stdCuts; scoreField = '표준점수'; }
+    else if ((subject === '사회탐구' || subject === '과학탐구') && isCsv && csvUseStdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
+    else { cuts = rawCuts; scoreField = '원점수'; }
   }
   
   // 등급컷 데이터 유효성 검사
@@ -1237,21 +1245,28 @@ function getGradeDistByRecordedGrade(parsed, subject) {
  * @returns {Object} 1,2등급 인원수, 비율, 총인원 정보
  */
 function get12GradeByCut(parsed, subject, rawCuts, stdCuts) {
-  const useStd = (window.uploadedFileExt === 'xlsx');
+  // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
+  if (window.uploadedFileExt === 'csv' && (window.csvTargetUseRecorded === true)) {
+    return get12GradeByRecordedGrade(parsed, subject);
+  }
+
   let cuts, scoreField;
-  
-  // 파일 형식에 따른 점수 타입 결정
-  if (useStd) {
+  const isXlsx = (window.uploadedFileExt === 'xlsx');
+  const isCsv = (window.uploadedFileExt === 'csv');
+  const csvUseStdKorMath = !!window.csvTargetUseStdKorMath;
+  const csvUseStdExplore = !!window.csvTargetUseStdExplore;
+
+  if (isXlsx) {
     if (subject === '영어' || subject === '한국사') {
-      cuts = rawCuts;
-      scoreField = '원점수';
+      cuts = rawCuts; scoreField = '원점수';
     } else {
-      cuts = stdCuts;
-      scoreField = '표준점수';
+      cuts = stdCuts; scoreField = '표준점수';
     }
   } else {
-    cuts = rawCuts;
-    scoreField = '원점수';
+    if (subject === '영어' || subject === '한국사') { cuts = rawCuts; scoreField = '원점수'; }
+    else if ((subject === '국어' || subject === '수학') && isCsv && csvUseStdKorMath) { cuts = stdCuts; scoreField = '표준점수'; }
+    else if ((subject === '사회탐구' || subject === '과학탐구') && isCsv && csvUseStdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
+    else { cuts = rawCuts; scoreField = '원점수'; }
   }
   
   if (!Array.isArray(cuts) || cuts.length < 2) {
@@ -1477,7 +1492,7 @@ window.analyzeAll = async function() {
     }
 
     // 1. 영역별 응시자 현황 테이블
-    let html = `<div class="analysis-header">
+  let html = `<div class="analysis-header">
       <h3>1. 영역별 응시자 현황</h3>
       <div class="btn-container"></div>
     </div>
@@ -1705,6 +1720,7 @@ window.handleCompareFile = function(e) {
   
   compareFileName = file.name;
   const ext = file.name.split('.').pop().toLowerCase();
+  try { window.compareUploadedFileExt = ext; } catch(e) {}
   const reader = new FileReader();
   
   reader.onload = function(ev) {
@@ -1720,15 +1736,34 @@ window.handleCompareFile = function(e) {
       // 파일 업로드 성공 시 버튼 활성화
       document.getElementById('showCompareBtn').disabled = false;
       showMessage(`비교 파일이 업로드되었습니다: ${compareFileName}`);
+    } else if (ext === 'csv' || ext === 'txt') {
+      // CSV 파일 처리 (기존 CSV 파싱 규칙 재사용)
+      try {
+        const text = ev.target.result;
+        const lines = text.trim().split('\n').map(row => row.split(','));
+        rows = lines;
+        compareParsedData = parseCsvRows(lines);
+        document.getElementById('showCompareBtn').disabled = false;
+        showMessage(`비교 파일이 업로드되었습니다: ${compareFileName}`);
+      } catch (err) {
+        console.error(err);
+        compareParsedData = [];
+        document.getElementById('showCompareBtn').disabled = true;
+        showMessage('CSV 파싱 중 오류가 발생했습니다.');
+      }
+    } else if (ext === 'xls') {
+      showMessage(".xls 파일은 한글이 깨질 수 있습니다. Excel에서 '다른 이름으로 저장'을 통해 .xlsx 형식으로 저장하여 업로드를 권장드립니다.");
+      compareParsedData = [];
+      document.getElementById('showCompareBtn').disabled = true;
     } else {
-      // XLSX 파일이 아닌 경우 오류 메시지
-      showMessage("xlsx 파일만 업로드 가능합니다!\nExcel에서 다른 이름으로 저장하기를 통해\nxlsx 파일로 저장 후 업로드해주세요.");
+      showMessage('지원하지 않는 파일 형식입니다. (.csv, .xlsx)');
       compareParsedData = [];
       document.getElementById('showCompareBtn').disabled = true;
     }
   };
   
-  reader.readAsArrayBuffer(file);
+  if (ext === 'xlsx') reader.readAsArrayBuffer(file);
+  else reader.readAsText(file, 'euc-kr');
 };
 
 /**
@@ -2069,7 +2104,7 @@ async function fetchEbsiCompareCuts() {
   const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
   const grades = [1,2,3,4,5,6,7,8,9];
   
-  let html = `<h3>등급별 인원 현황</h3>`;
+  let html = `<div class="analysis-header"><h3>등급별 인원 현황</h3><div class="btn-container"></div></div>`;
   html += `<button class="copy-btn" onclick="showComparisonBarCharts()">그래프 보기</button>`;
   html += `<table class="grade-dist-table">
       <thead>
@@ -2092,8 +2127,19 @@ async function fetchEbsiCompareCuts() {
         const subjKey = subjectMap[subj];
         // 기준 파일: 등급컷 기준 (올바른 키 사용)
         const base = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-        // 비교 파일: 학생 등급 필드 기준
-        const comp = getGradeDistByRecordedGrade(compareParsedData, subj);
+        // 비교 파일: 토글에 따라 기록 등급 또는 등급컷 기준
+        let comp;
+        if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
+          comp = getGradeDistByRecordedGrade(compareParsedData, subj);
+        } else {
+          const prevExt = window.uploadedFileExt;
+          window.uploadedFileExt = window.compareUploadedFileExt;
+          try {
+            comp = getGradeDistByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+          } finally {
+            window.uploadedFileExt = prevExt;
+          }
+        }
         html += `<td>${base.dist[g-1] ?? '-'} / ${comp.dist[g-1] ?? '-'}</td><td>${base.ratio[g-1] ?? '-'} / ${comp.ratio[g-1] ?? '-'}</td>`;
       });
       html += `</tr>`;
@@ -2130,7 +2176,7 @@ async function fetchEbsiCompareCuts() {
     const subjects = ['국어', '수학', '영어'];
     const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
     
-    let html = `<h3>1,2등급 비율</h3>`;
+    let html = `<div class="analysis-header"><h3>1,2등급 비율</h3><div class="btn-container"></div></div>`;
     html += `<button class="copy-btn" onclick="toggleGrade12ComparisonChart(this)">그래프 보기</button>`;
     html += `<table class="grade-12-ratio-table">
       <thead>
@@ -2152,7 +2198,19 @@ async function fetchEbsiCompareCuts() {
     
     html += `<tr><td>인원 및 비율 (비교)</td>`;
     subjects.forEach(subj => {
-      const v = get12GradeByRecordedGrade(compareParsedData, subj);
+      let v;
+      if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
+        v = get12GradeByRecordedGrade(compareParsedData, subj);
+      } else {
+        const prevExt = window.uploadedFileExt;
+        window.uploadedFileExt = window.compareUploadedFileExt;
+        try {
+          const subjKey = subjectMap[subj];
+          v = get12GradeByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+        } finally {
+          window.uploadedFileExt = prevExt;
+        }
+      }
       html += `<td>${v.cnt} / ${v.ratio}</td>`;
     });
     html += `</tr>`;
@@ -2416,7 +2474,7 @@ async function fetchEbsiCompareCuts() {
   
     // 비교 성적 분석 탭 UI 동적 생성
     document.getElementById('analyzeSection_compare').innerHTML = `
-      <input type="file" id="compareUploadInput" accept=".xlsx" onchange="handleCompareFile(event)" />
+      <input type="file" id="compareUploadInput" accept=".csv,.xlsx,.xls" onchange="handleCompareFile(event)" />
       <button id="showCompareBtn" class="copy-btn" onclick="renderCompareResult()" disabled>비교 결과 보기</button>
       <div id="compareResult" class="mt-18"></div>
     `;
@@ -2533,7 +2591,10 @@ function showScoreDistributionChart(scoreType) {
   function getUseStdForCombo() {
     if (comboScoreType === '표준점수') return true;
     if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
-    return (window.uploadedFileExt === 'xlsx');
+    // auto: XLSX는 표준, CSV는 사용자 토글 반영
+    if (window.uploadedFileExt === 'xlsx') return true;
+    if (window.uploadedFileExt === 'csv') return !!window.csvAnalysisUseStd;
+    return false;
   }
 
   function getScoreBySubjectAndType(s, subject) {
@@ -2780,7 +2841,9 @@ function showScoreDistributionChart(scoreType) {
   function getUseStdForCombo() {
     if (comboScoreType === '표준점수') return true;
     if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
-    return (window.uploadedFileExt === 'xlsx');
+    if (window.uploadedFileExt === 'xlsx') return true;
+    if (window.uploadedFileExt === 'csv') return !!window.csvAnalysisUseStd;
+    return false;
   }
 
   function getScoreBySubjectAndType(s, subject) {

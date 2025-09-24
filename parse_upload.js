@@ -32,6 +32,8 @@ window.parseFile = function() {
     return;
   }
   const ext = file.name.split('.').pop().toLowerCase();
+  // 업로드 확장자 전역 저장
+  try { window.uploadedFileExt = ext; } catch(e) {}
   if (ext === 'xls') {
     showMessage(".xls 파일은 한글이 깨질 수 있습니다. Excel에서 '다른 이름으로 저장'을 통해 .xlsx 형식으로 저장하여 업로드를 권장드립니다.");
     hideLoading();
@@ -136,17 +138,21 @@ function parseCsvRows(rows) {
     const grade = id.substring(2, 3).padStart(1, '0');
     const classNum = id.substring(3, 5).padStart(2, '0');
     const number = id.substring(5, 8).padStart(3, '0');
+    // CSV 포맷: 아이디, 이름, 학년, 시험일자, 출제기관,
+    // 국어(원/표/백/등), 수학(원/표/백/등), 영어(원/등),
+    // 탐1과목명, 탐1(원/표/백/등), 탐2과목명, 탐2(원/표/백/등), 한국사(원/등), 잠금상태
+    // 인덱스는 샘플과 코드 주석에 맞춤
     data.push({
       학년: grade,
       반: classNum,
       번호: number,
       이름: row[1] || '',
-      국어: { 원점수: row[5] || '', 표준점수: row[6] || '', 백분위: row[7] || '' },
-      수학: { 원점수: row[9] || '', 표준점수: row[10] || '', 백분위: row[11] || '' },
-      영어: { 원점수: row[13] || '' },
-      한국사: { 원점수: row[25] || '' },
-      사회탐구: { 원점수: row[16] || '', 표준점수: row[17] || '', 백분위: row[18] || '' },
-      과학탐구: { 원점수: row[21] || '', 표준점수: row[22] || '', 백분위: row[23] || '' }
+      국어: { 원점수: row[5] || '', 표준점수: row[6] || '', 백분위: row[7] || '', 등급: row[8] || '' },
+      수학: { 원점수: row[9] || '', 표준점수: row[10] || '', 백분위: row[11] || '', 등급: row[12] || '' },
+      영어: { 원점수: row[13] || '', 등급: row[14] || '' },
+      한국사: { 원점수: row[25] || '', 등급: row[26] || '' },
+      사회탐구: { 원점수: row[16] || '', 표준점수: row[17] || '', 백분위: row[18] || '', 등급: row[19] || '' },
+      과학탐구: { 원점수: row[21] || '', 표준점수: row[22] || '', 백분위: row[23] || '', 등급: row[24] || '' }
     });
   }
   return data;

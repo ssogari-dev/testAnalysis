@@ -54,7 +54,9 @@ function updateClassDropdown() {
         return;
       }
       // 확장자에 따라 등급컷 분기
-      const useStd = (window.uploadedFileExt === 'xlsx');
+      // XLSX 기본 표준점수, CSV는 토글로 표준점수 허용
+      const useStdKorMath = (window.uploadedFileExt === 'xlsx') || (window.uploadedFileExt === 'csv' && window.csvTargetUseStdKorMath);
+      const useStdExplore = (window.uploadedFileExt === 'xlsx') || (window.uploadedFileExt === 'csv' && window.csvTargetUseStdExplore);
       let html = '<table id="viewResultTable"><thead>';
       html += `
         <tr>
@@ -89,10 +91,10 @@ function updateClassDropdown() {
           return 9;
         };
         // 등급컷 선택
-        const korCuts = useStd ? gradeCuts.target.std.korean : gradeCuts.target.raw.korean;
-        const mathCuts = useStd ? gradeCuts.target.std.math : gradeCuts.target.raw.math;
-        const socCuts = useStd ? gradeCuts.target.std.social : gradeCuts.target.raw.social;
-        const sciCuts = useStd ? gradeCuts.target.std.science : gradeCuts.target.raw.science;
+        const korCuts = useStdKorMath ? gradeCuts.target.std.korean : gradeCuts.target.raw.korean;
+        const mathCuts = useStdKorMath ? gradeCuts.target.std.math : gradeCuts.target.raw.math;
+        const socCuts = useStdExplore ? gradeCuts.target.std.social : gradeCuts.target.raw.social;
+        const sciCuts = useStdExplore ? gradeCuts.target.std.science : gradeCuts.target.raw.science;
         const engCuts = gradeCuts.target.raw.english;
         const hisCuts = gradeCuts.target.raw.history;
         const socRawInt = parseInt(s.사회탐구.원점수) || '-';
@@ -100,12 +102,21 @@ function updateClassDropdown() {
         html += '<tr>';
         html += `<td class="no-copy">${s.반}</td>`;
         html += `<td class="no-copy">${s.번호}</td><td class="no-copy">${s.이름}</td>`;
-        html += `<td>${s.국어.원점수}(${s.국어.표준점수})</td><td>${s.국어.백분위}</td><td>${getGrade(useStd?s.국어.표준점수:s.국어.원점수, korCuts)}</td>`;
-        html += `<td>${s.수학.원점수}(${s.수학.표준점수})</td><td>${s.수학.백분위}</td><td>${getGrade(useStd?s.수학.표준점수:s.수학.원점수, mathCuts)}</td>`;
-        html += `<td>${s.영어.원점수}</td><td>${getGrade(s.영어.원점수, engCuts)}</td>`;
-        html += `<td>${s.한국사.원점수}</td><td>${getGrade(s.한국사.원점수, hisCuts)}</td>`;
-        html += `<td>${socRawInt}(${s.사회탐구.표준점수})</td><td>${s.사회탐구.백분위}</td><td>${getGrade(useStd?s.사회탐구.표준점수:s.사회탐구.원점수, socCuts)}</td>`;
-        html += `<td>${sciRawInt}(${s.과학탐구.표준점수})</td><td>${s.과학탐구.백분위}</td><td>${getGrade(useStd?s.과학탐구.표준점수:s.과학탐구.원점수, sciCuts)}</td>`;
+        // 기록 등급 사용 토글이 켜져 있고 CSV인 경우, 등급 칸에는 기록된 등급 표시
+        const useRecorded = (window.uploadedFileExt === 'csv' && window.csvTargetUseRecorded === true);
+        const korGradeDisp = useRecorded ? (s.국어?.등급 || '-') : getGrade(useStdKorMath?s.국어.표준점수:s.국어.원점수, korCuts);
+        const mathGradeDisp = useRecorded ? (s.수학?.등급 || '-') : getGrade(useStdKorMath?s.수학.표준점수:s.수학.원점수, mathCuts);
+        const engGradeDisp = useRecorded ? (s.영어?.등급 || '-') : getGrade(s.영어.원점수, engCuts);
+        const hisGradeDisp = useRecorded ? (s.한국사?.등급 || '-') : getGrade(s.한국사.원점수, hisCuts);
+        const socGradeDisp = useRecorded ? (s.사회탐구?.등급 || '-') : getGrade(useStdExplore?s.사회탐구.표준점수:s.사회탐구.원점수, socCuts);
+        const sciGradeDisp = useRecorded ? (s.과학탐구?.등급 || '-') : getGrade(useStdExplore?s.과학탐구.표준점수:s.과학탐구.원점수, sciCuts);
+
+        html += `<td>${s.국어.원점수}(${s.국어.표준점수})</td><td>${s.국어.백분위}</td><td>${korGradeDisp}</td>`;
+        html += `<td>${s.수학.원점수}(${s.수학.표준점수})</td><td>${s.수학.백분위}</td><td>${mathGradeDisp}</td>`;
+        html += `<td>${s.영어.원점수}</td><td>${engGradeDisp}</td>`;
+        html += `<td>${s.한국사.원점수}</td><td>${hisGradeDisp}</td>`;
+        html += `<td>${socRawInt}(${s.사회탐구.표준점수})</td><td>${s.사회탐구.백분위}</td><td>${socGradeDisp}</td>`;
+        html += `<td>${sciRawInt}(${s.과학탐구.표준점수})</td><td>${s.과학탐구.백분위}</td><td>${sciGradeDisp}</td>`;
         html += '</tr>';
       });
       html += '</tbody></table>';

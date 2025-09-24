@@ -92,6 +92,33 @@ function showSection(id) {
     }
   };
   
+  // 업로드 파일 확장자 및 CSV 분석 토글 전역 상태
+  // uploadedFileExt: 'csv' | 'xlsx' | ''
+  if (typeof window.uploadedFileExt === 'undefined') {
+    window.uploadedFileExt = '';
+  }
+  // CSV 분석 시 표준점수 강제 사용 여부 (기본: false)
+  if (typeof window.csvAnalysisUseStd === 'undefined') {
+    window.csvAnalysisUseStd = false;
+  }
+  // CSV 분석 시 파일에 기록된 등급을 그대로 사용할지 여부 (기본: false)
+  if (typeof window.csvAnalysisUseRecorded === 'undefined') {
+    window.csvAnalysisUseRecorded = false;
+  }
+  // 비교 업로드 파일 확장자
+  if (typeof window.compareUploadedFileExt === 'undefined') {
+    window.compareUploadedFileExt = '';
+  }
+
+  // 세분화된 CSV 옵션(대상)
+  if (typeof window.csvTargetUseStdKorMath === 'undefined') window.csvTargetUseStdKorMath = false;
+  if (typeof window.csvTargetUseStdExplore === 'undefined') window.csvTargetUseStdExplore = false;
+  if (typeof window.csvTargetUseRecorded === 'undefined') window.csvTargetUseRecorded = false;
+  // 세분화된 CSV 옵션(비교)
+  if (typeof window.csvCompareUseStdKorMath === 'undefined') window.csvCompareUseStdKorMath = false;
+  if (typeof window.csvCompareUseStdExplore === 'undefined') window.csvCompareUseStdExplore = false;
+  if (typeof window.csvCompareUseRecorded === 'undefined') window.csvCompareUseRecorded = false;
+  
   // 현재 활성화된 등급컷 메뉴(대상/비교)
   let currentCutTab = 'target';
   
