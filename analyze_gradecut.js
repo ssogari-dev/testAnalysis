@@ -1,3 +1,8 @@
+// ===============================================================================
+// 성적 분석 및 등급컷 관리 시스템
+// 전국연합학력평가 1학년 성적 데이터 분석을 위한 JavaScript 모듈
+// ===============================================================================
+
 // ------------------- 탭 UI 및 전역 변수 -------------------
 // 성적 분석 탭 상태 관리 변수들
 let analyzeTab = 'all'; // 현재 활성화된 탭 ('all': 전체분석, 'compare': 비교분석, 'list': 학생명단)
@@ -308,8 +313,66 @@ function initCutTable() {
       const list = SUBJECT_SETS.g2.social;
       const d = gradeCuts.details['2'].social;
       // 원점수(스택 상단)
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</어</h4>
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.raw?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수(스택 하단)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.std?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+    }
+    if (cutMajorTab === 'g2_science') {
+      const list = SUBJECT_SETS.g2.science;
+      const d = gradeCuts.details['2'].science;
+      html += '<div class="grade-cut-tables-container">';
+      // 원점수
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.raw?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      // 표준점수
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
+      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
+      html += renderEightRowsCells((i)=> list.map(n=>{
+        const k = subjectSlug(n);
+        const v = (d[k]?.std?.[i-1]) ?? '';
+        return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
+      }).join(''));
+      html += '</tbody></table></div>';
+      html += '</div>';
+    }
+  }
+
+  if (cutSelectedGrade === '3') {
+    if (cutMajorTab === 'g3_km') {
+      // 3학년 국어/수학: 과목별 원점수 + 통합 표준점수 한 표에 표시
+      const d3 = gradeCuts.details['3'];
+      const korRaw1 = d3.kor['kor_speaking']?.raw || [];
+      const korRaw2 = d3.kor['kor_language_media']?.raw || [];
+      const korStd = d3.korCombined.std || [];
+      const mRawP = d3.math['math_probability']?.raw || [];
+      const mRawC = d3.math['math_calculus']?.raw || [];
+      const mRawG = d3.math['math_geometry']?.raw || [];
+      const mStd = d3.mathCombined.std || [];
+
+      html += `<div class="grade-cut-tables-container">`;
+      // 국어 통합 표
+      html += `<div class="table-wrapper">
+        <h4 class="mb-6">국어 (3학년)</h4>
         <table class="cut-table">
           <thead>
             <tr>
@@ -332,7 +395,7 @@ function initCutTable() {
 
       // 수학 통합 표
       html += `<div class="table-wrapper">
-        <h4 class="mb-6">수학</h4>
+        <h4 class="mb-6">수학 (3학년)</h4>
         <table class="cut-table">
           <thead>
             <tr>
@@ -384,7 +447,7 @@ function initCutTable() {
       const list = SUBJECT_SETS.g3.social;
       const d = gradeCuts.details['3'].social;
       // 원점수(스택 상단)
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">';
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
       html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
       html += renderEightRowsCells((i)=> list.map(n=>{
         const k = subjectSlug(n);
@@ -393,7 +456,7 @@ function initCutTable() {
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수(스택 하단)
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">';
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
       html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
       html += renderEightRowsCells((i)=> list.map(n=>{
         const k = subjectSlug(n);
@@ -406,7 +469,7 @@ function initCutTable() {
       const list = SUBJECT_SETS.g3.science;
       const d = gradeCuts.details['3'].science;
       // 원점수 (위)
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">';
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
       html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
       html += renderEightRowsCells((i)=> list.map(n=>{
         const k = subjectSlug(n);
@@ -415,7 +478,7 @@ function initCutTable() {
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수 (아래)
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">';
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
       html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
       html += renderEightRowsCells((i)=> list.map(n=>{
         const k = subjectSlug(n);
