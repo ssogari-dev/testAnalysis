@@ -8,11 +8,12 @@
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
   <meta name="googlebot" content="noindex, nofollow">
   <meta name="bingbot" content="noindex, nofollow">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
 <body>
   <button id="settingsToggle" class="settings-fab" aria-label="설정 열기">⚙</button>
@@ -53,17 +54,31 @@
   
   <!-- 정보 팝업 -->
   <div id="infoPopup" class="info-popup">
-    <h3>알려드립니다.</h3>
+    <h3 style="margin-bottom: 20px;">안내 사항</h3>
+    
     <div class="help-section">
-      <h4>모든 데이터는 로컬에서 처리됩니다</h4>
-      <p>학생의 개인정보가 포함된 성적 파일을 업로드해도, 별도의 서버가 운용되지 않아 개인정보가 유출되지 않습니다. </p>
-      <p>모든 정보는 사용자의 PC에서만 처리되어 외부로 전송되지 않으며, 외부 서비스와 공유되지 않습니다.</p>
+      <h4>해룡고등학교 전용 웹 서비스</h4>
+      <p>본 학력평가 성적 분석 도구는 <strong>해룡고등학교 내부 사용</strong>을 최우선 목적으로 맞춤 개발되었습니다.</p>
     </div>
-    <h3>제작자 정보</h3>
-    <p><strong>황보현</strong> (해룡고등학교 교사 황혜원 동생)</p>
-    <p>- 버그 제보 및 기능 문의: <strong>admin@ssogari.dev</strong></p>
-    <p>이용해주셔서 감사합니다.</p>
-    <button id="closeInfoPopup" class="copy-btn mt-12">닫기</button>
+
+    <div class="help-section">
+      <h4>개인정보 보호 (로컬 처리)</h4>
+      <p>업로드하신 학생 성적 파일은 <strong>외부 서버로 전송되지 않습니다.</strong> 모든 분석은 선생님의 PC 내부에서만 안전하게 처리됩니다.</p>
+    </div>
+
+    <div class="help-section">
+      <h4>출처 및 저작권 명시</h4>
+      <p>- 플랫폼에서 자동으로 불러오거나 참고하는 <strong>모든 등급컷의 원본과 데이터 출처는 EBS(EBSi)</strong>에 귀속됩니다.</p>
+      <p>- 본 분석 도구의 시스템 설계 및 소스 코드에 대한 <strong>모든 저작권은 개발자(황보현)</strong>에게 있습니다.</p>
+    </div>
+
+    <div class="help-section" style="margin-top: 25px; margin-bottom: 5px;">
+      <h4 style="margin-bottom: 5px;">개발자 정보</h4>
+      <p style="font-size: 0.9em; margin-bottom: 5px;"><strong>황보현</strong> (해룡고등학교 황혜원 선생님 동생)</p>
+      <p style="font-size: 0.9em;">버그 제보 및 문의: <strong>admin@ssogari.dev</strong></p>
+    </div>
+    
+    <button id="closeInfoPopup" class="copy-btn mt-12" style="width: 100%;">닫기</button>
   </div>
 
   <div id="messagePopup">
@@ -83,6 +98,23 @@
       <p class="header-subtitle">전국연합학력평가 성적 분석 및 비교 자료 제작 보조 도구입니다.</p>
     </div>
   </header>
+  <!-- 스텝 인디케이터 -->
+  <div class="step-indicator" id="stepIndicator">
+    <div class="step-item step-active" id="step1" data-step="1">
+      <span class="step-number">1</span>
+      <span class="step-label">파일 업로드</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-item" id="step2" data-step="2">
+      <span class="step-number">2</span>
+      <span class="step-label">등급컷 입력</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-item" id="step3" data-step="3">
+      <span class="step-number">3</span>
+      <span class="step-label">분석 확인</span>
+    </div>
+  </div>
   <nav class="main-nav">
     <button onclick="showSection('upload')" class="nav-btn active">파일 업로드</button>
     <button onclick="showSection('cut')" class="nav-btn">등급컷</button>
@@ -95,15 +127,23 @@
       <h2>성적 입력 파일 업로드 (.XLSX / .CSV)</h2>
       <div id="uploadDrop" class="upload-box" onclick="document.getElementById('csvFile').click()" aria-label="파일 드래그앤드랍 또는 클릭 업로드">
         파일을 이 영역으로 끌어오거나 클릭하여 선택하세요
+        <div class="upload-format-badges">
+          <span class="format-badge">.XLSX</span>
+          <span class="format-badge">.CSV</span>
+        </div>
         <div id="lastUploadInfo" class="mt-10" style="color:var(--subtle-text-color); font-size:0.95rem;"></div>
       </div>
       <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" aria-label="성적 파일 업로드" />
       <button onclick="parseFile()" class="copy-btn ml-8" style="margin-top: 10px">업로드 및 파싱</button>
+      <div id="uploadSummaryCard" class="upload-summary-card hidden"></div>
       <div id="csvTableContainer"></div>
     </section>
     <!-- 등급컷 -->
     <section id="cut" class="content-section">
       <h2>등급컷 입력</h2>
+      <div id="cutEmptyGuide" class="empty-state-guide">
+        성적 파일을 먼저 업로드한 후, EBSi에서 등급컷을 불러오거나 직접 입력하세요.
+      </div>
       <!-- EBSi 드롭다운 메뉴가 여기에 바로 표시됩니다 -->
       <div id="ebsiInputs"></div>
       <div id="cutInputTable"></div>
@@ -119,6 +159,9 @@
     <!-- 성적 확인 -->
     <section id="view" class="content-section">
       <h2>성적 확인</h2>
+      <div id="viewEmptyGuide" class="empty-state-guide">
+        파일 업로드와 등급컷 입력을 먼저 완료하면 학생별 성적을 확인할 수 있습니다.
+      </div>
       <div id="viewSelect" class="mb-16" aria-label="성적 검색 필터">
         <label>학년:
           <select id="viewGrade">
@@ -142,14 +185,17 @@
     <!-- 성적 분석 -->
     <section id="analyze" class="content-section">
         <h2>성적 분석</h2>
+        <div id="analyzeEmptyGuide" class="empty-state-guide">
+          파일 업로드와 등급컷 입력을 먼저 완료하면 전체 성적 분석 결과를 확인할 수 있습니다.
+        </div>
         <div id="analyzeContent"></div>
       </section>
   </main>
-  <script src="common.js"></script>
-  <script src="parse_upload.js"></script>
-  <script src="analyze_gradecut.js"></script>
-  <script src="view_compare.js"></script>
-  <script src="analyze_chart.js"></script>
+  <script src="common.js?v=3"></script>
+  <script src="parse_upload.js?v=3"></script>
+  <script src="analyze_gradecut.js?v=3"></script>
+  <script src="view_compare.js?v=3"></script>
+  <script src="analyze_chart.js?v=3"></script>
   <script>
     // 정보 버튼 및 팝업 관련
     document.addEventListener('DOMContentLoaded', function() {
@@ -301,7 +347,7 @@
         if (!spec) return;
         const pop = document.createElement('div');
         pop.className = 'help-popover';
-        pop.innerHTML = `<button class="close" aria-label="닫기">×</button><h4>${spec.title}</h4><p>${spec.body}</p>`;
+        pop.innerHTML = `<h4>${spec.title}</h4><p>${spec.body}</p>`;
         document.body.appendChild(pop);
         // 위치 계산: 앵커 주변, 화면 밖으로 벗어나지 않게 보정
         const r = anchorEl.getBoundingClientRect();
@@ -331,19 +377,31 @@
         if (left > maxLeft) left = maxLeft;
         pop.style.top = top + 'px';
         pop.style.left = left + 'px';
-        pop.querySelector('.close').addEventListener('click', closePopover);
+        pop.addEventListener('mouseenter', () => clearTimeout(pop._timer));
+        pop.addEventListener('mouseleave', closePopover);
         currentPopover = pop;
       }
       document.querySelectorAll('.help-badge[data-help-key]')?.forEach(el=>{
-        el.addEventListener('click', (e)=>{
+        el.addEventListener('mouseenter', (e)=>{
+          if (currentPopover) clearTimeout(currentPopover._timer);
           const key = e.currentTarget.getAttribute('data-help-key');
           openPopover(e.currentTarget, key);
         });
-      });
-      document.addEventListener('click', (e)=>{
-        if (currentPopover && !currentPopover.contains(e.target) && !e.target.closest('.help-badge')) closePopover();
+        el.addEventListener('mouseleave', (e)=>{
+          if (currentPopover) {
+            currentPopover._timer = setTimeout(closePopover, 200);
+          }
+        });
       });
     });
   </script>
+  <!-- 차트 모달 -->
+  <div id="chartModal" class="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
+    <div class="chart-modal-content">
+      <button class="chart-modal-close" onclick="closeChartModal()">&times;</button>
+      <h3 id="chartModalTitle"></h3>
+      <div id="chartModalBody"></div>
+    </div>
+  </div>
 </body>
 </html>

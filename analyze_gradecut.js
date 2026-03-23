@@ -28,20 +28,20 @@ let cutSelections = {
 };
 
 // 과목 슬러그 유틸
-function subjectSlug(name){
+function subjectSlug(name) {
   const map = {
-    '국어':'korean','수학':'math','영어':'english','한국사':'history',
-    '생활과윤리':'soc_life_ethics','윤리와사상':'soc_ethics_thought','한국지리':'soc_k_geo','세계사':'soc_world_history',
-    '세계지리':'soc_world_geo','동아시아사':'soc_east_asia','정치와법':'soc_politics_law','경제':'soc_economy','사회문화':'soc_society_culture',
-    '물리학 I':'sci_phy1','화학 I':'sci_chem1','생명과학 I':'sci_bio1','지구과학 I':'sci_earth1',
-    '물리학 II':'sci_phy2','화학 II':'sci_chem2','생명과학 II':'sci_bio2','지구과학 II':'sci_earth2',
-    '화법과작문':'kor_speaking','언어와매체':'kor_language_media',
-    '기하':'math_geometry','미적분':'math_calculus','확률과통계':'math_probability'
+    '국어': 'korean', '수학': 'math', '영어': 'english', '한국사': 'history',
+    '생활과윤리': 'soc_life_ethics', '윤리와사상': 'soc_ethics_thought', '한국지리': 'soc_k_geo', '세계사': 'soc_world_history',
+    '세계지리': 'soc_world_geo', '동아시아사': 'soc_east_asia', '정치와법': 'soc_politics_law', '경제': 'soc_economy', '사회문화': 'soc_society_culture',
+    '물리학 I': 'sci_phy1', '화학 I': 'sci_chem1', '생명과학 I': 'sci_bio1', '지구과학 I': 'sci_earth1',
+    '물리학 II': 'sci_phy2', '화학 II': 'sci_chem2', '생명과학 II': 'sci_bio2', '지구과학 II': 'sci_earth2',
+    '화법과작문': 'kor_speaking', '언어와매체': 'kor_language_media',
+    '기하': 'math_geometry', '미적분': 'math_calculus', '확률과통계': 'math_probability'
   };
-  return map[name] || name.replace(/\s+/g,'_');
+  return map[name] || name.replace(/\s+/g, '_');
 }
 
-function normalizeSubjectName(name){
+function normalizeSubjectName(name) {
   if (!name) return '';
   let n = String(name).trim();
   n = n.replace(/[Ⅰ]/g, ' I').replace(/[Ⅱ]/g, ' II');
@@ -51,60 +51,60 @@ function normalizeSubjectName(name){
   if (n === '사회문화') return '사회문화';
   if (n === '정치와법') return '정치와법';
   // 과학 I/II는 공백 추가 필요
-  n = n.replace('물리학I', '물리학 I').replace('물리학II','물리학 II')
-       .replace('화학I','화학 I').replace('화학II','화학 II')
-       .replace('생명과학I','생명과학 I').replace('생명과학II','생명과학 II')
-       .replace('지구과학I','지구과학 I').replace('지구과학II','지구과학 II');
+  n = n.replace('물리학I', '물리학 I').replace('물리학II', '물리학 II')
+    .replace('화학I', '화학 I').replace('화학II', '화학 II')
+    .replace('생명과학I', '생명과학 I').replace('생명과학II', '생명과학 II')
+    .replace('지구과학I', '지구과학 I').replace('지구과학II', '지구과학 II');
   return n;
 }
 
-function parseNumberCell(text){
+function parseNumberCell(text) {
   const t = (text || '').toString().trim();
   if (t === '-' || t === '') return NaN;
   const v = Number(t);
   return isNaN(v) ? NaN : v;
 }
 
-function fillForwardMissing(arr){
+function fillForwardMissing(arr) {
   if (!Array.isArray(arr)) return arr;
   const a = arr.slice();
   for (let i = 0; i < a.length - 1; i++) {
     if (isNaN(a[i]) || a[i] === undefined) {
-      a[i] = a[i+1];
+      a[i] = a[i + 1];
     }
   }
-  if (isNaN(a[a.length-1]) || a[a.length-1] === undefined) a[a.length-1] = 0;
+  if (isNaN(a[a.length - 1]) || a[a.length - 1] === undefined) a[a.length - 1] = 0;
   return a;
 }
 
 const SUBJECT_SETS = {
   g2: {
-    basic: ['국어','수학','영어','한국사'],
-    social: ['생활과윤리','윤리와사상','한국지리','세계사','세계지리','동아시아사','정치와법','경제','사회문화'],
-    science: ['물리학 I','화학 I','생명과학 I','지구과학 I']
+    basic: ['국어', '수학', '영어', '한국사'],
+    social: ['생활과윤리', '윤리와사상', '한국지리', '세계사', '세계지리', '동아시아사', '정치와법', '경제', '사회문화'],
+    science: ['물리학 I', '화학 I', '생명과학 I', '지구과학 I']
   },
   g3: {
-    kor: ['화법과작문','언어와매체'],
-    math: ['기하','미적분','확률과통계'],
-    engHis: ['영어','한국사'],
-    social: ['생활과윤리','윤리와사상','한국지리','세계사','세계지리','동아시아사','정치와법','경제','사회문화'],
-    science: ['물리학 I','화학 I','생명과학 I','지구과학 I','물리학 II','화학 II','생명과학 II','지구과학 II']
+    kor: ['화법과작문', '언어와매체'],
+    math: ['기하', '미적분', '확률과통계'],
+    engHis: ['영어', '한국사'],
+    social: ['생활과윤리', '윤리와사상', '한국지리', '세계사', '세계지리', '동아시아사', '정치와법', '경제', '사회문화'],
+    science: ['물리학 I', '화학 I', '생명과학 I', '지구과학 I', '물리학 II', '화학 II', '생명과학 II', '지구과학 II']
   }
 };
 
 // details 저장소 초기화 헬퍼
-function ensureGradeCutDetails(){
+function ensureGradeCutDetails() {
   if (!gradeCuts.details) gradeCuts.details = {};
-  if (!gradeCuts.details['2']) gradeCuts.details['2'] = { basic:{ raw:{}, std:{} }, social:{}, science:{} };
-  if (!gradeCuts.details['3']) gradeCuts.details['3'] = { kor:{}, math:{}, engHis:{ raw:{}, std:{} }, social:{}, science:{}, korCombined:{ std:[] }, mathCombined:{ std:[] } };
+  if (!gradeCuts.details['2']) gradeCuts.details['2'] = { basic: { raw: {}, std: {} }, social: {}, science: {} };
+  if (!gradeCuts.details['3']) gradeCuts.details['3'] = { kor: {}, math: {}, engHis: { raw: {}, std: {} }, social: {}, science: {}, korCombined: { std: [] }, mathCombined: { std: [] } };
   // 2학년 basic 과목 키 준비
-  SUBJECT_SETS.g2.basic.forEach(n=>{
+  SUBJECT_SETS.g2.basic.forEach(n => {
     const k = subjectSlug(n);
     if (!gradeCuts.details['2'].basic.raw[k]) gradeCuts.details['2'].basic.raw[k] = [];
     if (!gradeCuts.details['2'].basic.std[k]) gradeCuts.details['2'].basic.std[k] = [];
   });
   // 3학년 eng/his 준비
-  ['영어','한국사'].forEach(n=>{
+  ['영어', '한국사'].forEach(n => {
     const k = subjectSlug(n);
     if (!gradeCuts.details['3'].engHis.raw[k]) gradeCuts.details['3'].engHis.raw[k] = [];
     if (!gradeCuts.details['3'].engHis.std[k]) gradeCuts.details['3'].engHis.std[k] = [];
@@ -127,10 +127,13 @@ function switchAnalyzeTab(tab) {
   document.querySelectorAll('.analyze-section').forEach(sec => sec.classList.add('hidden'));
   // 선택된 섹션만 표시
   document.getElementById('analyzeSection_' + tab).classList.remove('hidden');
-  
+
   // 탭별 초기화 함수 실행
   if (tab === 'all') window.analyzeAll(); // 전체 성적 분석 실행
   if (tab === 'compare') resetCompareTab(); // 비교 분석 탭 초기화
+  if (tab === 'advanced') {
+    if (typeof renderAdvancedCharts === 'function') renderAdvancedCharts();
+  }
   if (tab === 'list') renderStudentList(); // 학생 명단 렌더링
 }
 
@@ -148,11 +151,22 @@ function initCutTable() {
   // 학년은 EBSi 학년 드롭다운(#ebsiGrade)의 값을 사용 (D100/200/300)
   const ebsiGradeEl = document.getElementById('ebsiGrade');
   const gval = ebsiGradeEl?.value || '';
-  const gmap = { D100:'1', D200:'2', D300:'3' };
+  const gmap = { D100: '1', D200: '2', D300: '3' };
   cutSelectedGrade = gmap[gval] || cutSelectedGrade || '1';
   if (ebsiGradeEl && !ebsiGradeEl.dataset.cutInitBound) {
-    ebsiGradeEl.addEventListener('change', ()=> initCutTable());
+    ebsiGradeEl.addEventListener('change', () => initCutTable());
     ebsiGradeEl.dataset.cutInitBound = '1';
+  }
+
+  // 학년 불일치 경고 (1회만)
+  if (parsedData && parsedData.length > 0) {
+    const fileGrades = [...new Set(parsedData.map(s => String(s.학년)))];
+    if (fileGrades.length === 1 && fileGrades[0] !== cutSelectedGrade) {
+      if (!window._gradeWarnShown || window._gradeWarnShown !== cutSelectedGrade) {
+        window._gradeWarnShown = cutSelectedGrade;
+        showMessage(`<strong>잠시만요!</strong> 업로드한 데이터는 ${fileGrades[0]}학년 자료입니다. 현재 등급컷은 ${cutSelectedGrade}학년을 선택하였는데, 올바른 선택인지 다시 한 번 확인해주세요.`);
+      }
+    }
   }
 
   // 1학년: 기존 UI 그대로
@@ -174,19 +188,19 @@ function initCutTable() {
             </tr>
           </thead>
             <tbody>`;
-  for (let i = 1; i <= 8; i++) {
-    html += `
+    for (let i = 1; i <= 8; i++) {
+      html += `
       <tr>
         <td class="no-copy">${i}등급</td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="korean" data-level="${i}" id="raw_korean${i}" required placeholder="점수" value="${cut.raw.korean[i-1]||''}"></td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="math" data-level="${i}" id="raw_math${i}" required placeholder="점수" value="${cut.raw.math[i-1]||''}"></td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="social" data-level="${i}" id="raw_social${i}" required placeholder="점수" value="${cut.raw.social[i-1]||''}"></td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="science" data-level="${i}" id="raw_science${i}" required placeholder="점수" value="${cut.raw.science[i-1]||''}"></td>
-        <td>${cut.raw.history?.[i-1]??''}</td>
-        <td>${cut.raw.english?.[i-1]??''}</td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="korean" data-level="${i}" id="raw_korean${i}" required placeholder="점수" value="${cut.raw.korean[i - 1] || ''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="math" data-level="${i}" id="raw_math${i}" required placeholder="점수" value="${cut.raw.math[i - 1] || ''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="social" data-level="${i}" id="raw_social${i}" required placeholder="점수" value="${cut.raw.social[i - 1] || ''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="raw" data-category="basic_1" data-subject="science" data-level="${i}" id="raw_science${i}" required placeholder="점수" value="${cut.raw.science[i - 1] || ''}"></td>
+        <td>${cut.raw.history?.[i - 1] ?? ''}</td>
+        <td>${cut.raw.english?.[i - 1] ?? ''}</td>
               </tr>`;
-  }
-  html += `
+    }
+    html += `
           </tbody>
         </table>
       </div>
@@ -203,57 +217,57 @@ function initCutTable() {
             </tr>
           </thead>
             <tbody>`;
-  for (let i = 1; i <= 8; i++) {
-    html += `
+    for (let i = 1; i <= 8; i++) {
+      html += `
       <tr>
         <td class="no-copy">${i}등급</td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="korean" data-level="${i}" id="std_korean${i}" required placeholder="점수" value="${cut.std.korean[i-1]||''}"></td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="math" data-level="${i}" id="std_math${i}" required placeholder="점수" value="${cut.std.math[i-1]||''}"></td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="social" data-level="${i}" id="std_social${i}" required placeholder="점수" value="${cut.std.social[i-1]||''}"></td>
-                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="science" data-level="${i}" id="std_science${i}" required placeholder="점수" value="${cut.std.science[i-1]||''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="korean" data-level="${i}" id="std_korean${i}" required placeholder="점수" value="${cut.std.korean[i - 1] || ''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="math" data-level="${i}" id="std_math${i}" required placeholder="점수" value="${cut.std.math[i - 1] || ''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="social" data-level="${i}" id="std_social${i}" required placeholder="점수" value="${cut.std.social[i - 1] || ''}"></td>
+                <td><input class="grade-cut-input" type="number" data-grade="1" data-type="std" data-category="basic_1" data-subject="science" data-level="${i}" id="std_science${i}" required placeholder="점수" value="${cut.std.science[i - 1] || ''}"></td>
               </tr>`;
     }
-  html += `
+    html += `
           </tbody>
         </table>
       </div>
       </div>`;
 
-  cutTable.innerHTML = html;
+    cutTable.innerHTML = html;
     attachCutInputValidation();
     return;
   }
 
   // 2·3학년: 대분류 탭 렌더
-  function renderMajorTabs(){
+  function renderMajorTabs() {
     let tabsHtml = '<div class="mb-18">';
     if (cutSelectedGrade === '2') {
       const tabs = [
-        {key:'g2_basic', label:'국어/수학/영어/한국사'},
-        {key:'g2_social', label:'사회탐구'},
-        {key:'g2_science', label:'과학탐구'}
+        { key: 'g2_basic', label: '국어/수학/영어/한국사' },
+        { key: 'g2_social', label: '사회탐구' },
+        { key: 'g2_science', label: '과학탐구' }
       ];
       if (!cutMajorTab) cutMajorTab = 'g2_basic';
-      tabs.forEach(t=>{
-        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab===t.key?'active':''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
+      tabs.forEach(t => {
+        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab === t.key ? 'active' : ''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
       });
     } else if (cutSelectedGrade === '3') {
       const tabs = [
-        {key:'g3_km', label:'국어/수학'},
-        {key:'g3_eh', label:'영어/한국사'},
-        {key:'g3_social', label:'사회탐구'},
-        {key:'g3_science', label:'과학탐구'}
+        { key: 'g3_km', label: '국어/수학' },
+        { key: 'g3_eh', label: '영어/한국사' },
+        { key: 'g3_social', label: '사회탐구' },
+        { key: 'g3_science', label: '과학탐구' }
       ];
       if (!cutMajorTab) cutMajorTab = 'g3_km';
-      tabs.forEach(t=>{
-        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab===t.key?'active':''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
+      tabs.forEach(t => {
+        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab === t.key ? 'active' : ''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
       });
     }
     tabsHtml += '</div>';
     return tabsHtml;
   }
 
-  function renderEightRowsCells(makeCell){
+  function renderEightRowsCells(makeCell) {
     let rows = '';
     for (let i = 1; i <= 8; i++) {
       rows += `<tr><td class="no-copy">${i}등급</td>${makeCell(i)}</tr>`;
@@ -261,19 +275,19 @@ function initCutTable() {
     return rows;
   }
 
-  function renderSingleSubjectTable(gradeKey, categoryKey, subjectName, rawArr, stdArr){
+  function renderSingleSubjectTable(gradeKey, categoryKey, subjectName, rawArr, stdArr) {
     const subjKey = subjectSlug(subjectName);
     let s = '';
     s += '<div class="grade-cut-tables-container">';
-    s += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th><th>'+subjectName+'</th></tr></thead><tbody>';
-    s += renderEightRowsCells((i)=>{
-      const v = rawArr?.[i-1] ?? '';
+    s += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th><th>' + subjectName + '</th></tr></thead><tbody>';
+    s += renderEightRowsCells((i) => {
+      const v = rawArr?.[i - 1] ?? '';
       return `<td><input class="grade-cut-input" type="number" data-grade="${gradeKey}" data-type="raw" data-category="${categoryKey}" data-subject="${subjKey}" data-level="${i}" id="raw_${subjKey}${i}" placeholder="점수" value="${v}"></td>`;
     });
     s += '</tbody></table></div>';
-    s += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th><th>'+subjectName+'</th></tr></thead><tbody>';
-    s += renderEightRowsCells((i)=>{
-      const v = stdArr?.[i-1] ?? '';
+    s += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th><th>' + subjectName + '</th></tr></thead><tbody>';
+    s += renderEightRowsCells((i) => {
+      const v = stdArr?.[i - 1] ?? '';
       return `<td><input class="grade-cut-input" type="number" data-grade="${gradeKey}" data-type="std" data-category="${categoryKey}" data-subject="${subjKey}" data-level="${i}" id="std_${subjKey}${i}" placeholder="점수" value="${v}"></td>`;
     });
     s += '</tbody></table></div>';
@@ -292,18 +306,18 @@ function initCutTable() {
       const subjects = SUBJECT_SETS.g2.basic;
       html += '<div class="grade-cut-tables-container">';
       // 원점수 표
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> subjects.map(n=>{
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + subjects.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => subjects.map(n => {
         const k = subjectSlug(n);
-        const v = d.basic.raw[k]?.[i-1] ?? '';
+        const v = d.basic.raw[k]?.[i - 1] ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_basic\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수 표
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> subjects.map(n=>{
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + subjects.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => subjects.map(n => {
         const k = subjectSlug(n);
-        const v = d.basic.std[k]?.[i-1] ?? '';
+        const v = d.basic.std[k]?.[i - 1] ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_basic\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
@@ -314,19 +328,19 @@ function initCutTable() {
       const d = gradeCuts.details['2'].social;
       // 원점수(스택 상단)
       html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.raw?.[i-1]) ?? '';
+        const v = (d[k]?.raw?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수(스택 하단)
       html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.std?.[i-1]) ?? '';
+        const v = (d[k]?.std?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
@@ -337,19 +351,19 @@ function initCutTable() {
       html += '<div class="grade-cut-tables-container">';
       // 원점수
       html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.raw?.[i-1]) ?? '';
+        const v = (d[k]?.raw?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수
       html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.std?.[i-1]) ?? '';
+        const v = (d[k]?.std?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
@@ -386,9 +400,9 @@ function initCutTable() {
       for (let i = 1; i <= 8; i++) {
         html += `<tr>
           <td class="no-copy">${i}등급</td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_korean" data-subject="kor_speaking" data-level="${i}" id="raw_kor_speaking${i}" placeholder="점수" value="${korRaw1[i-1]??''}"></td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_korean" data-subject="kor_language_media" data-level="${i}" id="raw_kor_language_media${i}" placeholder="점수" value="${korRaw2[i-1]??''}"></td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="std" data-category="g3_kor_combined" data-subject="kor_combined" data-level="${i}" id="std_kor_combined${i}" placeholder="점수" value="${korStd[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_korean" data-subject="kor_speaking" data-level="${i}" id="raw_kor_speaking${i}" placeholder="점수" value="${korRaw1[i - 1] ?? ''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_korean" data-subject="kor_language_media" data-level="${i}" id="raw_kor_language_media${i}" placeholder="점수" value="${korRaw2[i - 1] ?? ''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="std" data-category="g3_kor_combined" data-subject="kor_combined" data-level="${i}" id="std_kor_combined${i}" placeholder="점수" value="${korStd[i - 1] ?? ''}"></td>
         </tr>`;
       }
       html += `</tbody></table></div>`;
@@ -410,10 +424,10 @@ function initCutTable() {
       for (let i = 1; i <= 8; i++) {
         html += `<tr>
           <td class="no-copy">${i}등급</td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_probability" data-level="${i}" id="raw_math_probability${i}" placeholder="점수" value="${mRawP[i-1]??''}"></td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_calculus" data-level="${i}" id="raw_math_calculus${i}" placeholder="점수" value="${mRawC[i-1]??''}"></td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_geometry" data-level="${i}" id="raw_math_geometry${i}" placeholder="점수" value="${mRawG[i-1]??''}"></td>
-          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="std" data-category="g3_math_combined" data-subject="math_combined" data-level="${i}" id="std_math_combined${i}" placeholder="점수" value="${mStd[i-1]??''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_probability" data-level="${i}" id="raw_math_probability${i}" placeholder="점수" value="${mRawP[i - 1] ?? ''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_calculus" data-level="${i}" id="raw_math_calculus${i}" placeholder="점수" value="${mRawC[i - 1] ?? ''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="raw" data-category="g3_math" data-subject="math_geometry" data-level="${i}" id="raw_math_geometry${i}" placeholder="점수" value="${mRawG[i - 1] ?? ''}"></td>
+          <td><input class="grade-cut-input" type="number" data-grade="3" data-type="std" data-category="g3_math_combined" data-subject="math_combined" data-level="${i}" id="std_math_combined${i}" placeholder="점수" value="${mStd[i - 1] ?? ''}"></td>
         </tr>`;
       }
       html += `</tbody></table></div>`;
@@ -426,18 +440,18 @@ function initCutTable() {
       const subjects = SUBJECT_SETS.g3.engHis; // ['영어','한국사']
       html += '<div class="grade-cut-tables-container">';
       // 원점수 표
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> subjects.map(n=>{
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + subjects.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => subjects.map(n => {
         const k = subjectSlug(n);
-        const v = d.engHis.raw[k]?.[i-1] ?? '';
+        const v = d.engHis.raw[k]?.[i - 1] ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"raw\" data-category=\"g3_eh\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수 표
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>'+subjects.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> subjects.map(n=>{
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + subjects.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => subjects.map(n => {
         const k = subjectSlug(n);
-        const v = d.engHis.std[k]?.[i-1] ?? '';
+        const v = d.engHis.std[k]?.[i - 1] ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"std\" data-category=\"g3_eh\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
@@ -448,19 +462,19 @@ function initCutTable() {
       const d = gradeCuts.details['3'].social;
       // 원점수(스택 상단)
       html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.raw?.[i-1]) ?? '';
+        const v = (d[k]?.raw?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"raw\" data-category=\"g3_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수(스택 하단)
       html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (사회탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.std?.[i-1]) ?? '';
+        const v = (d[k]?.std?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"std\" data-category=\"g3_social\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
@@ -470,19 +484,19 @@ function initCutTable() {
       const d = gradeCuts.details['3'].science;
       // 원점수 (위)
       html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.raw?.[i-1]) ?? '';
+        const v = (d[k]?.raw?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"raw\" data-category=\"g3_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       // 표준점수 (아래)
       html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷 (과학탐구 전 과목)</h4>\n<table class="cut-table">';
-      html += '<thead><tr><th class="no-copy">등급</th>'+list.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>';
-      html += renderEightRowsCells((i)=> list.map(n=>{
+      html += '<thead><tr><th class="no-copy">등급</th>' + list.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => list.map(n => {
         const k = subjectSlug(n);
-        const v = (d[k]?.std?.[i-1]) ?? '';
+        const v = (d[k]?.std?.[i - 1]) ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"3\" data-type=\"std\" data-category=\"g3_science\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
@@ -498,7 +512,7 @@ function initCutTable() {
  * 입력된 등급컷 데이터를 전역 변수에 저장하는 함수
  * 사용자가 입력한 원점수/표준점수 등급컷을 gradeCuts.target에 저장
  */
-window.applyCut = function() {
+window.applyCut = function (silent) {
   showLoading();
   setTimeout(() => {
     const validation = validateCutInputs(true);
@@ -507,19 +521,19 @@ window.applyCut = function() {
       showMessage('등급컷 입력 오류\n- ' + validation.errors[0]);
       return;
     }
-    
+
     // 1학년: 기존 방식 저장
     if (cutSelectedGrade === '1') {
       const cut = gradeCuts.target;
-    for (let i = 1; i <= 8; i++) {
-      cut.raw.korean[i-1] = Number(document.getElementById('raw_korean'+i).value);
-      cut.raw.math[i-1] = Number(document.getElementById('raw_math'+i).value);
-      cut.raw.social[i-1] = Number(document.getElementById('raw_social'+i).value);
-      cut.raw.science[i-1] = Number(document.getElementById('raw_science'+i).value);
-      cut.std.korean[i-1] = Number(document.getElementById('std_korean'+i).value);
-      cut.std.math[i-1] = Number(document.getElementById('std_math'+i).value);
-      cut.std.social[i-1] = Number(document.getElementById('std_social'+i).value);
-      cut.std.science[i-1] = Number(document.getElementById('std_science'+i).value);
+      for (let i = 1; i <= 8; i++) {
+        cut.raw.korean[i - 1] = Number(document.getElementById('raw_korean' + i).value);
+        cut.raw.math[i - 1] = Number(document.getElementById('raw_math' + i).value);
+        cut.raw.social[i - 1] = Number(document.getElementById('raw_social' + i).value);
+        cut.raw.science[i - 1] = Number(document.getElementById('raw_science' + i).value);
+        cut.std.korean[i - 1] = Number(document.getElementById('std_korean' + i).value);
+        cut.std.math[i - 1] = Number(document.getElementById('std_math' + i).value);
+        cut.std.social[i - 1] = Number(document.getElementById('std_social' + i).value);
+        cut.std.science[i - 1] = Number(document.getElementById('std_science' + i).value);
       }
     } else {
       // 2·3학년: 화면의 입력 필드를 스캔하여 details에 저장
@@ -537,43 +551,44 @@ window.applyCut = function() {
           if (category === 'g2_basic') {
             const d = gradeCuts.details['2'];
             if (!d.basic[type][subj]) d.basic[type][subj] = [];
-            d.basic[type][subj][lvl-1] = isNaN(val) ? undefined : val;
+            d.basic[type][subj][lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g2_social') {
-            const k = subj; if (!gradeCuts.details['2'].social[k]) gradeCuts.details['2'].social[k] = { raw:[], std:[] };
-            gradeCuts.details['2'].social[k][type][lvl-1] = isNaN(val) ? undefined : val;
+            const k = subj; if (!gradeCuts.details['2'].social[k]) gradeCuts.details['2'].social[k] = { raw: [], std: [] };
+            gradeCuts.details['2'].social[k][type][lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g2_science') {
-            const k = subj; if (!gradeCuts.details['2'].science[k]) gradeCuts.details['2'].science[k] = { raw:[], std:[] };
-            gradeCuts.details['2'].science[k][type][lvl-1] = isNaN(val) ? undefined : val;
+            const k = subj; if (!gradeCuts.details['2'].science[k]) gradeCuts.details['2'].science[k] = { raw: [], std: [] };
+            gradeCuts.details['2'].science[k][type][lvl - 1] = isNaN(val) ? undefined : val;
           }
         } else if (gradeKey === '3') {
           if (category === 'g3_korean') {
-            const k = subj; if (!gradeCuts.details['3'].kor[k]) gradeCuts.details['3'].kor[k] = { raw:[], std:[] };
-            gradeCuts.details['3'].kor[k][type][lvl-1] = isNaN(val) ? undefined : val;
+            const k = subj; if (!gradeCuts.details['3'].kor[k]) gradeCuts.details['3'].kor[k] = { raw: [], std: [] };
+            gradeCuts.details['3'].kor[k][type][lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g3_math') {
-            const k = subj; if (!gradeCuts.details['3'].math[k]) gradeCuts.details['3'].math[k] = { raw:[], std:[] };
-            gradeCuts.details['3'].math[k][type][lvl-1] = isNaN(val) ? undefined : val;
+            const k = subj; if (!gradeCuts.details['3'].math[k]) gradeCuts.details['3'].math[k] = { raw: [], std: [] };
+            gradeCuts.details['3'].math[k][type][lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g3_kor_combined') {
             if (!gradeCuts.details['3'].korCombined) gradeCuts.details['3'].korCombined = { std: [] };
-            if (type === 'std') gradeCuts.details['3'].korCombined.std[lvl-1] = isNaN(val) ? undefined : val;
+            if (type === 'std') gradeCuts.details['3'].korCombined.std[lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g3_math_combined') {
             if (!gradeCuts.details['3'].mathCombined) gradeCuts.details['3'].mathCombined = { std: [] };
-            if (type === 'std') gradeCuts.details['3'].mathCombined.std[lvl-1] = isNaN(val) ? undefined : val;
+            if (type === 'std') gradeCuts.details['3'].mathCombined.std[lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g3_eh') {
             const d = gradeCuts.details['3'];
             if (!d.engHis[type][subj]) d.engHis[type][subj] = [];
-            d.engHis[type][subj][lvl-1] = isNaN(val) ? undefined : val;
+            d.engHis[type][subj][lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g3_social') {
-            const k = subj; if (!gradeCuts.details['3'].social[k]) gradeCuts.details['3'].social[k] = { raw:[], std:[] };
-            gradeCuts.details['3'].social[k][type][lvl-1] = isNaN(val) ? undefined : val;
+            const k = subj; if (!gradeCuts.details['3'].social[k]) gradeCuts.details['3'].social[k] = { raw: [], std: [] };
+            gradeCuts.details['3'].social[k][type][lvl - 1] = isNaN(val) ? undefined : val;
           } else if (category === 'g3_science') {
-            const k = subj; if (!gradeCuts.details['3'].science[k]) gradeCuts.details['3'].science[k] = { raw:[], std:[] };
-            gradeCuts.details['3'].science[k][type][lvl-1] = isNaN(val) ? undefined : val;
+            const k = subj; if (!gradeCuts.details['3'].science[k]) gradeCuts.details['3'].science[k] = { raw: [], std: [] };
+            gradeCuts.details['3'].science[k][type][lvl - 1] = isNaN(val) ? undefined : val;
           }
         }
       });
     }
 
-    showMessage('등급컷이 저장되었습니다. 데이터 입력이 반영되었습니다.');
+    if (!silent) showMessage('등급컷이 저장되었습니다. 데이터 입력이 반영되었습니다.');
+    if (typeof updateStepIndicator === 'function') updateStepIndicator();
     hideLoading();
   }, 300);
 };
@@ -588,10 +603,29 @@ function attachCutInputValidation() {
 
 function validateCutInputs(applyStyles = false) {
   const errors = [];
-  const markEl = (el, ok) => {
+  // 기존 인라인 오류 텍스트 제거
+  if (applyStyles) {
+    document.querySelectorAll('#cutInputTable .cut-error-text').forEach(el => el.remove());
+  }
+  const markEl = (el, ok, msg) => {
     if (!applyStyles || !el) return;
-    el.style.borderColor = ok ? '' : '#dc3545';
-    el.style.boxShadow = ok ? '' : '0 0 0 2px rgba(220,53,69,0.15)';
+    el.classList.remove('cut-valid', 'cut-invalid');
+    el.style.borderColor = '';
+    el.style.boxShadow = '';
+    // 기존 오류 텍스트 제거
+    const existing = el.parentElement?.querySelector('.cut-error-text');
+    if (existing) existing.remove();
+    if (ok) {
+      if (el.value !== '') el.classList.add('cut-valid');
+    } else {
+      el.classList.add('cut-invalid');
+      if (msg) {
+        const errSpan = document.createElement('span');
+        errSpan.className = 'cut-error-text';
+        errSpan.textContent = msg;
+        el.parentElement?.appendChild(errSpan);
+      }
+    }
   };
 
   // 그룹핑: raw/std 각각에 대해 subject별로 1~8 체크
@@ -608,21 +642,24 @@ function validateCutInputs(applyStyles = false) {
   // 원점수 0~100, 표준점수 0~200, 단조감소
   const validateGroup = (type, rangeMax) => {
     Object.keys(groups[type]).forEach(subj => {
-    let prev = Infinity;
-    for (let i = 1; i <= 8; i++) {
+      let prev = Infinity;
+      for (let i = 1; i <= 8; i++) {
         const el = groups[type][subj][i];
         if (!el) continue;
         const v = Number(el.value);
         const inRange = !isNaN(v) && v >= 0 && v <= rangeMax;
-        markEl(el, inRange);
-        if (!inRange) errors.push(`[${type==='raw'?'원점수':'표준점수'}/${subj}] ${i}등급 값이 유효하지 않습니다 (0~${rangeMax})`);
-        if (!isNaN(v) && v > prev) {
-          markEl(el, false);
-          errors.push(`[${type==='raw'?'원점수':'표준점수'}/${subj}] ${i-1}등급 ≥ ${i}등급 규칙 위반`);
+        if (!inRange) {
+          markEl(el, false, `0~${rangeMax}`);
+          errors.push(`[${type === 'raw' ? '원점수' : '표준점수'}/${subj}] ${i}등급 값이 유효하지 않습니다 (0~${rangeMax})`);
+        } else if (!isNaN(v) && v > prev) {
+          markEl(el, false, '감소 규칙 위반');
+          errors.push(`[${type === 'raw' ? '원점수' : '표준점수'}/${subj}] ${i - 1}등급 ≥ ${i}등급 규칙 위반`);
+        } else {
+          markEl(el, true);
+        }
+        prev = isNaN(v) ? prev : v;
       }
-      prev = isNaN(v) ? prev : v;
-    }
-  });
+    });
   };
 
   validateGroup('raw', 100);
@@ -637,28 +674,28 @@ function validateCutInputs(applyStyles = false) {
  * @param {string} html - EBSi에서 복사한 등급컷 테이블 HTML
  * @param {string} tab - 저장할 등급컷 타입 ('target' 또는 'compare')
  */
-window.parseEBSiGradeCutHtml = function(html, tab = 'target') {
+window.parseEBSiGradeCutHtml = function (html, tab = 'target') {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  
+
   // 과목명 매핑 (한글 → 영문 키)
-  const subjMap = { '국어':'korean', '수학':'math', '영어':'english', '한국사':'history' };
-  
+  const subjMap = { '국어': 'korean', '수학': 'math', '영어': 'english', '한국사': 'history' };
+
   // 등급컷 배열 초기화
-  ['korean','math','english','history'].forEach(subj=>{
+  ['korean', 'math', 'english', 'history'].forEach(subj => {
     gradeCuts[tab].raw[subj] = [];
     gradeCuts[tab].std[subj] = [];
   });
-  
+
   // HTML에서 과목별 등급컷 테이블 파싱
   doc.querySelectorAll('.col_6').forEach(col => {
     const subjKor = col.querySelector('h3')?.textContent.trim();
     const subj = subjMap[subjKor];
     if (!subj) return;
-    
+
     const trs = col.querySelectorAll('tbody tr');
     let rawArr = [], stdArr = [];
-    
+
     // 1~8등급 등급컷 추출
     for (let i = 1; i <= 8; i++) {
       const tr = trs[i];
@@ -667,11 +704,11 @@ window.parseEBSiGradeCutHtml = function(html, tab = 'target') {
       rawArr.push(Number(tds[2]?.textContent.trim() || 0)); // 원점수
       stdArr.push(Number(tds[3]?.textContent.trim() || 0)); // 표준점수
     }
-    
+
     gradeCuts[tab].raw[subj] = rawArr;
     gradeCuts[tab].std[subj] = stdArr;
   });
-  
+
   showMessage('붙여넣은 등급컷에서 원점수/표준점수 등급컷을 모두 추출했습니다.');
   initCutTable();
 };
@@ -681,30 +718,30 @@ window.parseEBSiGradeCutHtml = function(html, tab = 'target') {
  * EBSi 웹사이트에서 시험 목록을 동적으로 불러와 드롭다운 메뉴를 생성하는 함수
  * 연도/학년/시험별 등급컷 데이터를 자동으로 가져올 수 있도록 함
  */
-window.fetchEBSiCuts = async function() {
+window.fetchEBSiCuts = async function () {
   showLoading();
-  
+
   try {
     // 1단계: EBSi 메인 페이지에서 시험 목록 데이터 가져오기
     const mainRes = await fetch('https://www.ebsi.co.kr/ebs/xip/xipt/RetrieveSCVMainTop.ajax?irecord=202506041', {
       method: 'POST'
     });
     const mainHtml = await mainRes.text();
-    
+
     // 2단계: HTML에서 JavaScript 코드 추출 (시험 목록 데이터 포함)
     const scriptMatch = mainHtml.match(/jQuery\('#search_year'\)\.on\('change'[\s\S]*?}\);/);
     if (!scriptMatch) {
       throw new Error('시험 목록 데이터를 찾을 수 없습니다.');
     }
-    
+
     const jsCode = scriptMatch[0];
-    
+
     // 3단계: JavaScript 코드에서 연도별 시험 데이터 파싱
     const examData = parseExamData(jsCode);
-    
+
     // 4단계: 파싱된 데이터로 UI 업데이트
     updateEbsiUI(examData);
-    
+
   } catch (e) {
     showMessage('EBSi 시험 목록 불러오기 중 오류가 발생했습니다.' + e.message);
     console.error(e);
@@ -720,40 +757,40 @@ window.fetchEBSiCuts = async function() {
  */
 function parseExamData(jsCode) {
   const examData = {};
-  
+
   // 연도별 블록 추출 (정규표현식 사용)
   const yearPattern = /if\(year == '(\d{4})'\) \{([\s\S]*?)\}(?=\s*else if\(year|jQuery)/g;
   let yearMatch;
-  
+
   while ((yearMatch = yearPattern.exec(jsCode)) !== null) {
     const year = yearMatch[1];
     const yearBlock = yearMatch[2];
     examData[year] = {};
-    
+
     // 학년별 블록 추출
     const targetPattern = /if\(target == '(D\d{3})'\) \{([\s\S]*?)\}(?=\s*else if\(target|\s*\})/g;
     let targetMatch;
-    
+
     while ((targetMatch = targetPattern.exec(yearBlock)) !== null) {
       const target = targetMatch[1];
       const targetBlock = targetMatch[2];
-      
+
       // 시험 옵션 추출
       const optionPattern = /options \+= '<option value="(\d+)">([^<]+)<\/option>';/g;
       const options = [];
       let optionMatch;
-      
+
       while ((optionMatch = optionPattern.exec(targetBlock)) !== null) {
         options.push({
           value: optionMatch[1], // irecord 값
           text: optionMatch[2]   // 시험명 (예: "3.26 학력평가")
         });
       }
-      
+
       examData[year][target] = options;
     }
   }
-  
+
   return examData;
 }
 
@@ -763,10 +800,10 @@ function parseExamData(jsCode) {
  */
 function updateEbsiUI(examData) {
   const ebsiContainer = document.getElementById('ebsiInputs');
-  
+
   // 기존 내용 초기화
   ebsiContainer.innerHTML = '';
-  
+
   // 연도/학년/시험 선택 드롭다운 UI 생성
   ebsiContainer.innerHTML = `
     <div class="flex-row gap-10 align-center mb-20">
@@ -777,7 +814,7 @@ function updateEbsiUI(examData) {
         </select>
       </label>
       <label>
-        <select id="ebsiGrade" class="minw-70" onchange="updateExamOptions()">
+        <select id="ebsiGrade" class="minw-70" onchange="updateExamOptions(); initCutTable();">
           <option value="">학년선택</option>
           <option value="D100">1학년</option>
           <option value="D200">2학년</option>
@@ -793,7 +830,7 @@ function updateEbsiUI(examData) {
       <button onclick="showPastePopup()" class="copy-btn ml-8">EBSi HTML 붙여넣기</button>
     </div>
   `;
-  
+
   // 전역 변수에 시험 데이터 저장
   window.ebsiExamData = examData;
 }
@@ -805,7 +842,7 @@ function updateGradeOptions() {
   const year = document.getElementById('ebsiYear').value;
   const gradeSelect = document.getElementById('ebsiGrade');
   const examSelect = document.getElementById('ebsiExam');
-  
+
   // 연도가 선택되고 해당 연도 데이터가 있으면 학년 드롭다운 활성화
   if (year && window.ebsiExamData[year]) {
     gradeSelect.disabled = false;
@@ -813,7 +850,7 @@ function updateGradeOptions() {
     gradeSelect.disabled = true;
     gradeSelect.value = '';
   }
-  
+
   // 시험 드롭다운 초기화
   examSelect.innerHTML = '<option value="">시험선택</option>';
   examSelect.disabled = true;
@@ -826,11 +863,11 @@ function updateExamOptions() {
   const year = document.getElementById('ebsiYear').value;
   const grade = document.getElementById('ebsiGrade').value;
   const examSelect = document.getElementById('ebsiExam');
-  
+
   // 연도와 학년이 모두 선택되고 해당 데이터가 있으면 시험 목록 표시
   if (year && grade && window.ebsiExamData[year] && window.ebsiExamData[year][grade]) {
     const exams = window.ebsiExamData[year][grade];
-    examSelect.innerHTML = '<option value="">시험선택</option>' + 
+    examSelect.innerHTML = '<option value="">시험선택</option>' +
       exams.map(exam => `<option value="${exam.value}">${exam.text}</option>`).join('');
     examSelect.disabled = false;
   } else {
@@ -846,48 +883,48 @@ async function loadEbsiGradeCuts() {
   const year = document.getElementById('ebsiYear').value;
   const grade = document.getElementById('ebsiGrade').value;
   const irecord = document.getElementById('ebsiExam').value;
-  
+
   // 필수 선택 항목 검증
   if (!year || !grade || !irecord) {
     showMessage('연도, 학년, 시험을 모두 선택하세요.');
     return;
   }
-  
+
   showLoading();
-  
+
   // EBSi API 요청 설정 (과목별로 분리된 요청)
   let reqs = [];
   if (grade === 'D100') {
     // 1학년: 현행 (기존 subjectId)
     reqs = [
-      {subjectId: '17012,17014,17020,110001', ord: 1, key: 'main'},
-      {subjectId: '140072', ord: 2, key: 'social'},
-      {subjectId: '140073', ord: 3, key: 'science'}
+      { subjectId: '17012,17014,17020,110001', ord: 1, key: 'main' },
+      { subjectId: '140072', ord: 2, key: 'social' },
+      { subjectId: '140073', ord: 3, key: 'science' }
     ];
   } else if (grade === 'D200') {
     // 2학년: 국수영한 / 사회(9과목) / 과학(4과목)
     reqs = [
-      {subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main'},
-      {subjectId: '17029,17037,17038,50613,50615,50616,50617,50618,140109', ord: 2, key: 'g2_social'},
-      {subjectId: '17041,17042,17043,140113', ord: 3, key: 'g2_science'}
+      { subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main' },
+      { subjectId: '17029,17037,17038,50613,50615,50616,50617,50618,140109', ord: 2, key: 'g2_social' },
+      { subjectId: '17041,17042,17043,140113', ord: 3, key: 'g2_science' }
     ];
   } else if (grade === 'D300') {
     // 3학년: 국수영한 / 사회 / 과학 (제공 subjectId)
     reqs = [
-      {subjectId: '63004,80003,140117,140119', ord: 1, key: 'g3_main'},
-      {subjectId: '141,142,146,63001,63002,63003,66001,66002,140112', ord: 2, key: 'g3_social'},
-      {subjectId: '154,155,156,157,158,159,140115,140116', ord: 3, key: 'g3_science'}
+      { subjectId: '63004,80003,140117,140119', ord: 1, key: 'g3_main' },
+      { subjectId: '141,142,146,63001,63002,63003,66001,66002,140112', ord: 2, key: 'g3_social' },
+      { subjectId: '154,155,156,157,158,159,140115,140116', ord: 3, key: 'g3_science' }
     ];
   } else {
     // 3학년은 추후 보강 예정
     reqs = [
-      {subjectId: '17012,17014,17020,110001', ord: 1, key: 'main'}
+      { subjectId: '17012,17014,17020,110001', ord: 1, key: 'main' }
     ];
   }
-  
+
   let cuts = { korean: [], math: [], english: [], history: [], social: [], science: [] };
   let stds = { korean: [], math: [], english: [], history: [], social: [], science: [] };
-  
+
   try {
     // 과목별로 등급컷 데이터 요청
     for (const req of reqs) {
@@ -895,31 +932,31 @@ async function loadEbsiGradeCuts() {
       form.append('subjectId', req.subjectId);
       form.append('irecord', irecord);
       form.append('ord', req.ord);
-      
+
       const url = 'https://www.ebsi.co.kr/ebs/xip/xipa/retrieveGrdCutList.ajax';
       const res = await fetch(url, {
         method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form.toString()
       });
-      
+
       const html = await res.text();
       const temp = document.createElement('div');
       temp.innerHTML = html;
-      
+
       // 메인 과목 (국어, 수학, 영어, 한국사) 처리 - 1학년
       if (req.key === 'main') {
         const col6s = temp.querySelectorAll('.col_6');
-        ['korean','math','english','history'].forEach((subj, idx) => {
+        ['korean', 'math', 'english', 'history'].forEach((subj, idx) => {
           const trs = col6s[idx]?.querySelectorAll('tbody tr');
           cuts[subj] = [];
           stds[subj] = [];
           for (let i = 1; i <= 8; i++) {
-            cuts[subj][i-1] = Number(trs?.[i]?.children[2]?.innerText || 0);
-            stds[subj][i-1] = Number(trs?.[i]?.children[3]?.innerText || 0);
+            cuts[subj][i - 1] = Number(trs?.[i]?.children[2]?.innerText || 0);
+            stds[subj][i - 1] = Number(trs?.[i]?.children[3]?.innerText || 0);
           }
         });
-      } 
+      }
       // 탐구 과목 처리
       else if (req.key === 'social' || req.key === 'science') {
         const col6 = temp.querySelector('.col_6');
@@ -927,8 +964,8 @@ async function loadEbsiGradeCuts() {
         cuts[req.key] = [];
         stds[req.key] = [];
         for (let i = 1; i <= 8; i++) {
-          cuts[req.key][i-1] = Number(trs?.[i]?.children[2]?.innerText || 0);
-          stds[req.key][i-1] = Number(trs?.[i]?.children[3]?.innerText || 0);
+          cuts[req.key][i - 1] = Number(trs?.[i]?.children[2]?.innerText || 0);
+          stds[req.key][i - 1] = Number(trs?.[i]?.children[3]?.innerText || 0);
         }
       }
       // 3학년: 국/수/영/한 (특수 테이블)
@@ -950,15 +987,15 @@ async function loadEbsiGradeCuts() {
               if (!/^(최고점|[1-8])$/.test(gtxt)) return;
               if (gtxt === '최고점') return;
               gradeIdx++;
-              raw1[gradeIdx-1] = parseNumberCell(tds[1]?.innerText);
-              raw2[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
-              std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+              raw1[gradeIdx - 1] = parseNumberCell(tds[1]?.innerText);
+              raw2[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
+              std[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
             });
             d3.kor['kor_speaking'] = d3.kor['kor_speaking'] || { raw: [], std: [] };
             d3.kor['kor_language_media'] = d3.kor['kor_language_media'] || { raw: [], std: [] };
-            d3.kor['kor_speaking'].raw = raw1.map(v => isNaN(v)?0:v);
-            d3.kor['kor_language_media'].raw = raw2.map(v => isNaN(v)?0:v);
-            d3.korCombined.std = std.map(v => isNaN(v)?0:v);
+            d3.kor['kor_speaking'].raw = raw1.map(v => isNaN(v) ? 0 : v);
+            d3.kor['kor_language_media'].raw = raw2.map(v => isNaN(v) ? 0 : v);
+            d3.korCombined.std = std.map(v => isNaN(v) ? 0 : v);
           } else if (nameKor === '수학') {
             const trs = col.querySelectorAll('table.math_table tbody tr');
             const rp = [], rc = [], rg = [], std = [];
@@ -970,18 +1007,18 @@ async function loadEbsiGradeCuts() {
               if (!/^(최고점|[1-8])$/.test(gtxt)) return;
               if (gtxt === '최고점') return;
               gradeIdx++;
-              rp[gradeIdx-1] = parseNumberCell(tds[1]?.innerText);
-              rc[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
-              rg[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
-              std[gradeIdx-1] = parseNumberCell(tds[4]?.innerText);
+              rp[gradeIdx - 1] = parseNumberCell(tds[1]?.innerText);
+              rc[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
+              rg[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
+              std[gradeIdx - 1] = parseNumberCell(tds[4]?.innerText);
             });
             d3.math['math_probability'] = d3.math['math_probability'] || { raw: [], std: [] };
             d3.math['math_calculus'] = d3.math['math_calculus'] || { raw: [], std: [] };
             d3.math['math_geometry'] = d3.math['math_geometry'] || { raw: [], std: [] };
-            d3.math['math_probability'].raw = rp.map(v => isNaN(v)?0:v);
-            d3.math['math_calculus'].raw = rc.map(v => isNaN(v)?0:v);
-            d3.math['math_geometry'].raw = rg.map(v => isNaN(v)?0:v);
-            d3.mathCombined.std = std.map(v => isNaN(v)?0:v);
+            d3.math['math_probability'].raw = rp.map(v => isNaN(v) ? 0 : v);
+            d3.math['math_calculus'].raw = rc.map(v => isNaN(v) ? 0 : v);
+            d3.math['math_geometry'].raw = rg.map(v => isNaN(v) ? 0 : v);
+            d3.mathCombined.std = std.map(v => isNaN(v) ? 0 : v);
           } else if (nameKor === '영어' || nameKor === '한국사') {
             const slug = subjectSlug(nameKor);
             const trs = col.querySelectorAll('tbody tr');
@@ -994,11 +1031,11 @@ async function loadEbsiGradeCuts() {
               if (!/^(최고점|[1-8])$/.test(gtxt)) return;
               if (gtxt === '최고점') return;
               gradeIdx++;
-              raw[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
-              std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+              raw[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
+              std[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
             });
-            d3.engHis.raw[slug] = raw.map(v => isNaN(v)?0:v);
-            d3.engHis.std[slug] = std.map(v => isNaN(v)?0:v);
+            d3.engHis.raw[slug] = raw.map(v => isNaN(v) ? 0 : v);
+            d3.engHis.std[slug] = std.map(v => isNaN(v) ? 0 : v);
           }
         });
       }
@@ -1022,8 +1059,8 @@ async function loadEbsiGradeCuts() {
             if (!/^(최고점|[1-8])$/.test(gtxt)) return;
             if (gtxt === '최고점') return;
             gradeIdx++;
-            raw[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
-            std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+            raw[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
+            std[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
           });
           d3.social[slug].raw = fillForwardMissing(raw);
           d3.social[slug].std = fillForwardMissing(std);
@@ -1049,8 +1086,8 @@ async function loadEbsiGradeCuts() {
             if (!/^(최고점|[1-8])$/.test(gtxt)) return;
             if (gtxt === '최고점') return;
             gradeIdx++;
-            raw[gradeIdx-1] = parseNumberCell(tds[2]?.innerText);
-            std[gradeIdx-1] = parseNumberCell(tds[3]?.innerText);
+            raw[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
+            std[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
           });
           d3.science[slug].raw = fillForwardMissing(raw);
           d3.science[slug].std = fillForwardMissing(std);
@@ -1066,13 +1103,13 @@ async function loadEbsiGradeCuts() {
           const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
           if (!nameKor) return;
           const slug = subjectSlug(nameKor);
-          if (!['korean','math','english','history'].includes(slug)) return;
+          if (!['korean', 'math', 'english', 'history'].includes(slug)) return;
           if (!d2.basic.raw[slug]) d2.basic.raw[slug] = [];
           if (!d2.basic.std[slug]) d2.basic.std[slug] = [];
           const trs = col.querySelectorAll('tbody tr');
           for (let i = 1; i <= 8; i++) {
-            d2.basic.raw[slug][i-1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
-            d2.basic.std[slug][i-1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+            d2.basic.raw[slug][i - 1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
+            d2.basic.std[slug][i - 1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
           }
         });
       }
@@ -1088,8 +1125,8 @@ async function loadEbsiGradeCuts() {
           if (!d2.social[slug]) d2.social[slug] = { raw: [], std: [] };
           const trs = col.querySelectorAll('tbody tr');
           for (let i = 1; i <= 8; i++) {
-            d2.social[slug].raw[i-1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
-            d2.social[slug].std[i-1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+            d2.social[slug].raw[i - 1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
+            d2.social[slug].std[i - 1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
           }
         });
       }
@@ -1105,29 +1142,31 @@ async function loadEbsiGradeCuts() {
           if (!d2.science[slug]) d2.science[slug] = { raw: [], std: [] };
           const trs = col.querySelectorAll('tbody tr');
           for (let i = 1; i <= 8; i++) {
-            d2.science[slug].raw[i-1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
-            d2.science[slug].std[i-1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+            d2.science[slug].raw[i - 1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
+            d2.science[slug].std[i - 1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
           }
         });
       }
     }
-    
+
     // 불러온 등급컷 데이터를 전역 변수에 저장
     const cut = gradeCuts.target;
     if (grade === 'D100') {
-    ['korean','math','english','history','social','science'].forEach(subj => {
-      cut.raw[subj] = cuts[subj] || [];
-      cut.std[subj] = stds[subj] || [];
-    });
-    cut.year = year;
+      ['korean', 'math', 'english', 'history', 'social', 'science'].forEach(subj => {
+        cut.raw[subj] = cuts[subj] || [];
+        cut.std[subj] = stds[subj] || [];
+      });
+      cut.year = year;
     } else if (grade === 'D200') {
       // 이미 루프 내에서 details['2']에 저장됨
       cut.year = year;
     }
-    
+
     // 등급컷 테이블 업데이트
     initCutTable();
-    showMessage(`EBSi에서 등급컷을 불러와 입력란에 반영했습니다.\n아래의 적용 버튼을 눌러주십시오.`);
+    // 자동 적용 (silent 모드 — 별도 팝업 없이)
+    applyCut(true);
+    showMessage(`EBSi에서 등급컷을 불러와 자동 적용했습니다.`);
   } catch (e) {
     showMessage('EBSi 등급컷 불러오기 중 오류가 발생했습니다.' + e.message);
     console.error(e);
@@ -1172,15 +1211,15 @@ function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
     else if ((subject === '사회탐구' || subject === '과학탐구') && isCsv && csvUseStdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
     else { cuts = rawCuts; scoreField = '원점수'; }
   }
-  
+
   // 등급컷 데이터 유효성 검사
   if (!Array.isArray(cuts) || cuts.length < 2) {
     return { dist: Array(9).fill(0), ratio: Array(9).fill('0'), total: 0 };
   }
-  
+
   let dist = Array(9).fill(0); // 1~9등급 인원수 배열
   let total = 0; // 총 인원수
-  
+
   // 각 학생의 점수를 등급컷과 비교하여 등급 산출
   parsed.forEach(s => {
     const rawVal = s?.[subject]?.[scoreField];
@@ -1202,10 +1241,10 @@ function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
     dist[grade - 1]++; // 해당 등급 인원수 증가
     total++; // 총 인원수 증가
   });
-  
+
   // 등급별 비율 계산 (백분율)
   const ratio = dist.map(n => total ? (n / total * 100).toFixed(2) : '0');
-  
+
   return { dist, ratio, total };
 }
 
@@ -1219,10 +1258,10 @@ function getGradeDistByRecordedGrade(parsed, subject) {
   if (!Array.isArray(parsed) || parsed.length === 0) {
     return { dist: Array(9).fill(0), ratio: Array(9).fill('0'), total: 0 };
   }
-  
+
   let dist = Array(9).fill(0);
   let total = 0;
-  
+
   // 학생 데이터의 등급 필드에서 직접 등급 정보 추출
   parsed.forEach(s => {
     const grade = Number(s[subject]?.등급 ?? NaN);
@@ -1231,7 +1270,7 @@ function getGradeDistByRecordedGrade(parsed, subject) {
       total++;
     }
   });
-  
+
   const ratio = dist.map(n => total ? (n / total * 100).toFixed(2) : '0');
   return { dist, ratio, total };
 }
@@ -1268,14 +1307,14 @@ function get12GradeByCut(parsed, subject, rawCuts, stdCuts) {
     else if ((subject === '사회탐구' || subject === '과학탐구') && isCsv && csvUseStdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
     else { cuts = rawCuts; scoreField = '원점수'; }
   }
-  
+
   if (!Array.isArray(cuts) || cuts.length < 2) {
     return { cnt: 0, ratio: '0', total: 0, sum: '0 / 0' };
   }
-  
+
   let dist = Array(9).fill(0);
   let total = 0;
-  
+
   // 등급 산출 및 집계
   parsed.forEach(s => {
     const rawVal = s?.[subject]?.[scoreField];
@@ -1287,18 +1326,18 @@ function get12GradeByCut(parsed, subject, rawCuts, stdCuts) {
 
     let grade = 9;
     for (let i = 0; i < 8; i++) {
-      if (score >= (cuts[i] || 0)) { 
-        grade = i+1; 
-        break; 
+      if (score >= (cuts[i] || 0)) {
+        grade = i + 1;
+        break;
       }
     }
-    dist[grade-1]++;
+    dist[grade - 1]++;
     total++;
   });
-  
+
   const cnt = dist[0] + dist[1]; // 1등급 + 2등급 인원수
   const ratio = total ? (cnt / total * 100).toFixed(2) : '0';
-  
+
   return { cnt, ratio, total, sum: cnt + ' / ' + ratio };
 }
 
@@ -1312,10 +1351,10 @@ function get12GradeByRecordedGrade(parsed, subject) {
   if (!Array.isArray(parsed) || parsed.length === 0) {
     return { cnt: 0, ratio: '0', total: 0, sum: '0 / 0' };
   }
-  
+
   let cnt = 0; // 1,2등급 인원수
   let total = 0; // 총 인원수
-  
+
   parsed.forEach(s => {
     const grade = Number(s[subject]?.등급 ?? NaN);
     if (!isNaN(grade) && grade >= 1 && grade <= 9) {
@@ -1323,7 +1362,7 @@ function get12GradeByRecordedGrade(parsed, subject) {
       total++;
     }
   });
-  
+
   const ratio = total ? (cnt / total * 100).toFixed(2) : '0';
   return { cnt, ratio, total, sum: cnt + ' / ' + ratio };
 }
@@ -1334,140 +1373,109 @@ function get12GradeByRecordedGrade(parsed, subject) {
  * 전체평균, 상위 10%/20%/30% 평균을 과목별로 계산하여 표시
  */
 function renderOverallStatsTables() {
-    const container = document.getElementById('overallStatsTables');
-    if (!container) return;
-    
-    const scoreTypes = ['원점수', '표준점수', '백분위'];
-    const subjects = ['국어', '수학'];
-    const exploreSubjects = ['사회탐구', '과학탐구'];
-    const statsLabels = [
-      {label: '전체 평균', key: 'avg'},
-      {label: '상위 10% 평균', key: 'top10'},
-      {label: '상위 20% 평균', key: 'top20'},
-      {label: '상위 30% 평균', key: 'top30'}
-    ];
-    
-    let html = '';
-    
-    scoreTypes.forEach((scoreType, idx) => {
-      html += `<h3>${scoreType} 기준 통계 (국어, 수학)</h3>`;
-      html += `<button class="copy-btn" onclick="toggleScoreDistributionChart('${scoreType}', this)">그래프 보기</button>`;
-      html += `<table class="stats-table"><thead><tr><th>구분</th>`;
-      subjects.forEach(subj => html += `<th>${subj} 영역</th>`);
-      html += `</tr></thead><tbody>`;
-      
-      statsLabels.forEach(stat => {
-        html += `<tr><td>${stat.label}</td>`;
-        subjects.forEach(subj => {
-          const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
-          arr.sort((a,b) => b-a);
-          let value = '-';
-          if (arr.length) {
-            if (stat.key === 'avg') {
-              value = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
-            }
-            else if (stat.key === 'top10') {
-              const top10Count = Math.ceil(arr.length*0.1);
-              value = (arr.slice(0,top10Count).reduce((a,b)=>a+b,0)/top10Count).toFixed(2);
-            }
-            else if (stat.key === 'top20') {
-              const top20Count = Math.ceil(arr.length*0.2);
-              value = (arr.slice(0,top20Count).reduce((a,b)=>a+b,0)/top20Count).toFixed(2);
-            }
-            else if (stat.key === 'top30') {
-              const top30Count = Math.ceil(arr.length*0.3);
-              value = (arr.slice(0,top30Count).reduce((a,b)=>a+b,0)/top30Count).toFixed(2);
-            }
-          }
-          html += `<td>${value}</td>`;
-        });
-        html += `</tr>`;
-      });
-      html += `</tbody></table>`;
-      
-      // 그래프 컨테이너 추가
-      html += `<div id="chart_${scoreType}" class="hidden mt-20">
-        <div class="charts-two-col">
-          <div class="chart-container"><canvas id="canvas_${scoreType}_korean" class="chart-canvas"></canvas></div>
-          <div class="chart-container"><canvas id="canvas_${scoreType}_math" class="chart-canvas"></canvas></div>
-        </div>
-      </div>`;
+  const container = document.getElementById('overallStatsTables');
+  if (!container) return;
 
-      // CDF 버튼/컨테이너 추가
-      html += `<button class="copy-btn mt-10" onclick="toggleScoreCdfChart('${scoreType}', this)">누적분포(CDF) 보기</button>`;
-      html += `<div id="cdf_${scoreType}" class="hidden mt-20">
-        <div class="charts-two-col">
-          <div class="chart-container"><canvas id="cdf_${scoreType}_korean" class="chart-canvas"></canvas></div>
-          <div class="chart-container"><canvas id="cdf_${scoreType}_math" class="chart-canvas"></canvas></div>
-        </div>
-      </div>`;
-    });
+  const scoreTypes = ['원점수', '표준점수', '백분위'];
+  const subjects = ['국어', '수학'];
+  const exploreSubjects = ['사회탐구', '과학탐구'];
+  const statsLabels = [
+    { label: '전체 평균', key: 'avg' },
+    { label: '상위 10% 평균', key: 'top10' },
+    { label: '상위 20% 평균', key: 'top20' },
+    { label: '상위 30% 평균', key: 'top30' }
+  ];
 
-    scoreTypes.forEach(scoreType => {
-      html += `<h3>${scoreType} 기준 통계 (탐구 과목)</h3>`;
-      html += `<button class="copy-btn" onclick="toggleExploreDistributionChart('${scoreType}', this)">그래프 보기</button>`;
-      html += `<table class="stats-table"><thead><tr><th>구분</th>`;
-      exploreSubjects.forEach(subj => html += `<th>${subj} 영역</th>`);
-      html += `</tr></thead><tbody>`;
-      
-      statsLabels.forEach(stat => {
-        html += `<tr><td>${stat.label}</td>`;
-        exploreSubjects.forEach(subj => {
-          const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
-          arr.sort((a,b) => b-a);
-          let value = '-';
-          if (arr.length) {
-            if (stat.key === 'avg') {
-              value = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
-            }
-            else if (stat.key === 'top10') {
-              const top10Count = Math.ceil(arr.length*0.1);
-              value = (arr.slice(0,top10Count).reduce((a,b)=>a+b,0)/top10Count).toFixed(2);
-            }
-            else if (stat.key === 'top20') {
-              const top20Count = Math.ceil(arr.length*0.2);
-              value = (arr.slice(0,top20Count).reduce((a,b)=>a+b,0)/top20Count).toFixed(2);
-            }
-            else if (stat.key === 'top30') {
-              const top30Count = Math.ceil(arr.length*0.3);
-              value = (arr.slice(0,top30Count).reduce((a,b)=>a+b,0)/top30Count).toFixed(2);
-            }
+  let html = '';
+
+  scoreTypes.forEach((scoreType, idx) => {
+    html += `<h3>${scoreType} 기준 통계 (국어, 수학)
+      <button class="chart-toggle-btn" onclick="openScoreDistributionModal('${scoreType}')" title="분포 그래프">&#9632; 분포도</button>
+      <button class="chart-toggle-btn" onclick="openScoreCdfModal('${scoreType}')" title="누적 분포도">&#9632; 누적분포(CDF)</button></h3>`;
+    html += `<div class="table-container"><table class="stats-table"><thead><tr><th>구분</th>`;
+    subjects.forEach(subj => html += `<th>${subj} 영역</th>`);
+    html += `</tr></thead><tbody>`;
+
+    statsLabels.forEach(stat => {
+      html += `<tr><td>${stat.label}</td>`;
+      subjects.forEach(subj => {
+        const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
+        arr.sort((a, b) => b - a);
+        let value = '-';
+        if (arr.length) {
+          if (stat.key === 'avg') {
+            value = (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
           }
-          html += `<td>${value}</td>`;
-        });
-        html += `</tr>`;
+          else if (stat.key === 'top10') {
+            const top10Count = Math.ceil(arr.length * 0.1);
+            value = (arr.slice(0, top10Count).reduce((a, b) => a + b, 0) / top10Count).toFixed(2);
+          }
+          else if (stat.key === 'top20') {
+            const top20Count = Math.ceil(arr.length * 0.2);
+            value = (arr.slice(0, top20Count).reduce((a, b) => a + b, 0) / top20Count).toFixed(2);
+          }
+          else if (stat.key === 'top30') {
+            const top30Count = Math.ceil(arr.length * 0.3);
+            value = (arr.slice(0, top30Count).reduce((a, b) => a + b, 0) / top30Count).toFixed(2);
+          }
+        }
+        html += `<td>${value}</td>`;
       });
-      html += `</tbody></table>`;
-      
-      // 탐구 과목 그래프 컨테이너
-      html += `<div id="exploreChart_${scoreType}" class="hidden mt-20">
-        <div class="charts-two-col">
-          <div class="chart-container"><canvas id="canvas_${scoreType}_social" class="chart-canvas"></canvas></div>
-          <div class="chart-container"><canvas id="canvas_${scoreType}_science" class="chart-canvas"></canvas></div>
-        </div>
-      </div>`;
-      // 탐구 CDF
-      html += `<button class="copy-btn mt-10" onclick="toggleExploreCdfChart('${scoreType}', this)">탐구 CDF 보기</button>`;
-      html += `<div id="cdfExplore_${scoreType}" class="hidden mt-20">
-        <div class="charts-two-col">
-          <div class="chart-container"><canvas id="cdfExplore_${scoreType}_social" class="chart-canvas"></canvas></div>
-          <div class="chart-container"><canvas id="cdfExplore_${scoreType}_science" class="chart-canvas"></canvas></div>
-        </div>
-      </div>`;
+      html += `</tr>`;
     });
-    
-    container.innerHTML = html;
-  }
-  
+    html += `</tbody></table></div>`;
+  });
+
+  scoreTypes.forEach(scoreType => {
+    html += `<h3>${scoreType} 기준 통계 (탐구 과목)
+      <button class="chart-toggle-btn" onclick="openExploreDistributionModal('${scoreType}')" title="분포 그래프">&#9632; 그래프</button>
+      <button class="chart-toggle-btn" onclick="openExploreCdfModal('${scoreType}')" title="누적 분포도">&#9632; 탐구 CDF</button></h3>`;
+    html += `<div class="table-container"><table class="stats-table"><thead><tr><th>구분</th>`;
+    exploreSubjects.forEach(subj => html += `<th>${subj} 영역</th>`);
+    html += `</tr></thead><tbody>`;
+
+    statsLabels.forEach(stat => {
+      html += `<tr><td>${stat.label}</td>`;
+      exploreSubjects.forEach(subj => {
+        const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
+        arr.sort((a, b) => b - a);
+        let value = '-';
+        if (arr.length) {
+          if (stat.key === 'avg') {
+            value = (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+          }
+          else if (stat.key === 'top10') {
+            const top10Count = Math.ceil(arr.length * 0.1);
+            value = (arr.slice(0, top10Count).reduce((a, b) => a + b, 0) / top10Count).toFixed(2);
+          }
+          else if (stat.key === 'top20') {
+            const top20Count = Math.ceil(arr.length * 0.2);
+            value = (arr.slice(0, top20Count).reduce((a, b) => a + b, 0) / top20Count).toFixed(2);
+          }
+          else if (stat.key === 'top30') {
+            const top30Count = Math.ceil(arr.length * 0.3);
+            value = (arr.slice(0, top30Count).reduce((a, b) => a + b, 0) / top30Count).toFixed(2);
+          }
+        }
+        html += `<td>${value}</td>`;
+      });
+      html += `</tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+
+  container.innerHTML = html;
+}
+
 
 // ------------------- 전체 성적 분석 메인 함수 -------------------
 /**
  * 전체 성적 분석 탭의 모든 테이블과 통계를 생성하는 메인 함수
  * 응시자 현황, 등급컷 정보, 통계, 등급별 인원 현황 등을 종합적으로 분석
  */
-window.analyzeAll = async function() {
+window.analyzeAll = async function () {
   showLoading();
-  
+
   setTimeout(() => {
     const parsed = parsedData;
     const useStd = (window.uploadedFileExt === 'xlsx');
@@ -1482,17 +1490,17 @@ window.analyzeAll = async function() {
       const kor = parsed.filter(s => s.국어.원점수 && s.국어.원점수 !== '').length;
       const math = parsed.filter(s => s.수학.원점수 && s.수학.원점수 !== '').length;
       const eng = parsed.filter(s => s.영어.원점수 && s.영어.원점수 !== '').length;
-      
+
       return [
         { name: '한국사', count: total, ratio: '100.00' },
-        { name: '국어', count: kor, ratio: total ? (kor/total*100).toFixed(2) : '0.00' },
-        { name: '수학', count: math, ratio: total ? (math/total*100).toFixed(2) : '0.00' },
-        { name: '영어', count: eng, ratio: total ? (eng/total*100).toFixed(2) : '0.00' }
+        { name: '국어', count: kor, ratio: total ? (kor / total * 100).toFixed(2) : '0.00' },
+        { name: '수학', count: math, ratio: total ? (math / total * 100).toFixed(2) : '0.00' },
+        { name: '영어', count: eng, ratio: total ? (eng / total * 100).toFixed(2) : '0.00' }
       ];
     }
 
     // 1. 영역별 응시자 현황 테이블
-  let html = `<div class="analysis-header">
+    let html = `<div class="analysis-header">
       <h3>1. 영역별 응시자 현황</h3>
       <div class="btn-container"></div>
     </div>
@@ -1508,11 +1516,11 @@ window.analyzeAll = async function() {
     <tbody>
       <tr>
         <td class="no-copy">응시인원<br>및 비율</td>
-        ${getExamStatus(parsed).map(s=>`<td>${s.count}<br>(${s.ratio})</td>`).join('')}
+        ${getExamStatus(parsed).map(s => `<td>${s.count}<br>(${s.ratio})</td>`).join('')}
       </tr>
       <tr>
         <td class="no-copy">합계</td>
-        ${getExamStatus(parsed).map(s=>`<td>${s.count} (${s.ratio.split('.')[0]})</td>`).join('')}
+        ${getExamStatus(parsed).map(s => `<td>${s.count} (${s.ratio.split('.')[0]})</td>`).join('')}
       </tr>
     </tbody></table>`;
 
@@ -1530,8 +1538,8 @@ window.analyzeAll = async function() {
     html += `<div id="overallStatsTables"></div>`;
 
     // 6. 국어, 수학, 영어 영역별 등급 인원 현황
-    html += `<h3>6. 국어, 수학, 영어 영역별 등급 인원 현황</h3>
-    <button class="copy-btn" onclick="toggleGradePieCharts(this)">그래프 보기</button>
+    html += `<h3>6. 국어, 수학, 영어 영역별 등급 인원 현황
+    <button class="chart-toggle-btn" onclick="openGradePieChartModal()" title="그래프 보기">&#9632; 그래프</button></h3>
     <table id="gradeDistTable"><thead>
       <tr>
         <th class="no-copy" rowspan="2">구분</th>
@@ -1545,32 +1553,22 @@ window.analyzeAll = async function() {
         <th>인원</th><th>비율</th>
       </tr>
     </thead><tbody>`;
-    
+
     // 1~9등급별 인원 및 비율 계산
-    for(let g=1;g<=9;g++){
+    for (let g = 1; g <= 9; g++) {
       html += `<tr><td class="no-copy">${g}등급</td>`;
-      html += `<td>${getGradeDistByCut(parsed, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean).dist[g-1]}</td><td>${getGradeDistByCut(parsed, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean).ratio[g-1]}</td>`;
-      html += `<td>${getGradeDistByCut(parsed, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math).dist[g-1]}</td><td>${getGradeDistByCut(parsed, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math).ratio[g-1]}</td>`;
-      html += `<td>${getGradeDistByCut(parsed, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english).dist[g-1]}</td><td>${getGradeDistByCut(parsed, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english).ratio[g-1]}</td>`;
+      html += `<td>${getGradeDistByCut(parsed, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean).dist[g - 1]}</td><td>${getGradeDistByCut(parsed, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean).ratio[g - 1]}</td>`;
+      html += `<td>${getGradeDistByCut(parsed, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math).dist[g - 1]}</td><td>${getGradeDistByCut(parsed, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math).ratio[g - 1]}</td>`;
+      html += `<td>${getGradeDistByCut(parsed, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english).dist[g - 1]}</td><td>${getGradeDistByCut(parsed, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english).ratio[g - 1]}</td>`;
       html += `</tr>`;
     }
-    
+
     // 합계 행
     html += `<tr><td class="no-copy">합계</td>`;
     html += `<td>${getGradeDistByCut(parsed, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean).total}</td><td>100</td>`;
     html += `<td>${getGradeDistByCut(parsed, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math).total}</td><td>100</td>`;
     html += `<td>${getGradeDistByCut(parsed, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english).total}</td><td>100</td>`;
     html += `</tr></tbody></table>`;
-
-    html += `</table>
-<div id="gradeCharts" class="hidden mt-20">
-  <div class="charts-two-col">
-    <div class="chart-container"><h4>국어</h4><canvas id="koreanGradeChart" class="chart-canvas"></canvas></div>
-    <div class="chart-container"><h4>수학</h4><canvas id="mathGradeChart" class="chart-canvas"></canvas></div>
-    <div class="chart-container"><h4>영어</h4><canvas id="englishGradeChart" class="chart-canvas"></canvas></div>
-  </div>
-  
-</div>`;
 
     // 7. 국어, 수학, 영어 영역별 1,2등급 비율
     html += `<h3>7. 국어, 수학, 영어 영역별 1,2등급 비율</h3>
@@ -1590,8 +1588,8 @@ window.analyzeAll = async function() {
 
 
     // 8. 탐구 과목 영역별 등급 인원 현황
-    html += `<h3>8. 탐구 과목 영역별 등급 인원 현황</h3>
-    <button class="copy-btn" onclick="toggleExploreGradePieCharts(this)">그래프 보기</button>
+    html += `<h3>8. 탐구 과목 영역별 등급 인원 현황
+    <button class="chart-toggle-btn" onclick="openExploreGradePieChartModal()" title="그래프 보기">&#9632; 그래프</button></h3>
     <table id="exploreGradeDistTable"><thead>
       <tr>
         <th class="no-copy" rowspan="2">구분</th>
@@ -1603,45 +1601,36 @@ window.analyzeAll = async function() {
         <th>인원</th><th>비율</th>
       </tr>
     </thead><tbody>`;
-    
-    for(let g=1;g<=9;g++){
+
+    for (let g = 1; g <= 9; g++) {
       html += `<tr><td class="no-copy">${g}등급</td>`;
-      html += `<td>${getGradeDistByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).dist[g-1]}</td><td>${getGradeDistByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).ratio[g-1]}</td>`;
-      html += `<td>${getGradeDistByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).dist[g-1]}</td><td>${getGradeDistByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).ratio[g-1]}</td>`;
+      html += `<td>${getGradeDistByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).dist[g - 1]}</td><td>${getGradeDistByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).ratio[g - 1]}</td>`;
+      html += `<td>${getGradeDistByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).dist[g - 1]}</td><td>${getGradeDistByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).ratio[g - 1]}</td>`;
       html += `</tr>`;
     }
-    
+
     html += `<tr><td class="no-copy">합계</td>`;
     html += `<td>${getGradeDistByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).total}</td><td>100</td>`;
     html += `<td>${getGradeDistByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).total}</td><td>100</td>`;
     html += `</tr></tbody></table>`;
 
-    html += `</table>
-<div id="exploreCharts" class="hidden mt-20">
-  <div class="charts-two-col">
-    <div class="chart-container"><h4>사회탐구</h4><canvas id="socialGradeChart" class="chart-canvas"></canvas></div>
-    <div class="chart-container"><h4>과학탐구</h4><canvas id="scienceGradeChart" class="chart-canvas"></canvas></div>
-  </div>
-  
-</div>`;
-
-html += `<h3>8-1. 탐구 과목 영역별 1,2등급 비율</h3>
+    html += `<h3>8-1. 탐구 과목 영역별 1,2등급 비율</h3>
 <table id="exploreGrade12Table"><thead>
   <tr><th class="no-copy">구분</th><th>사회탐구영역</th><th>과학탐구영역</th></tr>
 </thead><tbody>
   <tr><td class="no-copy">1,2등급 인원 및 비율</td>`;
-html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).cnt} / ${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).ratio}</td>`;
-html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).cnt} / ${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).ratio}</td>`;
-html += `</tr>
+    html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).cnt} / ${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).ratio}</td>`;
+    html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).cnt} / ${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).ratio}</td>`;
+    html += `</tr>
   <tr><td class="no-copy">합계</td>`;
-html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).sum}</td>`;
-html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).sum}</td>`;
-html += `</tr></tbody></table>`;
+    html += `<td>${get12GradeByCut(parsed, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social).sum}</td>`;
+    html += `<td>${get12GradeByCut(parsed, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science).sum}</td>`;
+    html += `</tr></tbody></table>`;
 
     // 9. 과목 조합 분석 카드
     html += `<h3>9. 과목 조합 분석</h3>`;
     html += `<div id="comboContainer">` + renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML() + `</div>`;
- 
+
     // HTML을 페이지에 적용
     document.getElementById('analyzeSection_all').innerHTML = html;
 
@@ -1665,11 +1654,11 @@ function resetCompareTab() {
   renderCompareStatsTables(); // 통계 비교 테이블 초기화
   renderGradeDistTable(); // 등급별 인원 비교 테이블 초기화
   renderGrade12RatioTable(); // 1,2등급 비율 비교 테이블 초기화
-  
+
   // 비교 데이터 초기화
   compareParsedData = [];
   compareFileName = '';
-  
+
   // UI 요소들 초기화
   const uploadInput = document.getElementById('compareUploadInput');
   if (uploadInput) uploadInput.value = '';
@@ -1686,12 +1675,12 @@ function resetCompareTab() {
  */
 function parseCompareXlsxRows(rows) {
   const data = [];
-  
+
   // 첫 행은 헤더이므로 i=1부터 시작
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length < 2) continue;
-    
+
     // 각 행을 학생 객체로 변환
     data.push({
       학년: row[0] || '',
@@ -1706,7 +1695,7 @@ function parseCompareXlsxRows(rows) {
       과학탐구: { 원점수: row[20] || '', 표준점수: row[21] || '', 백분위: row[22] || '', 등급: row[23] || '' }
     });
   }
-  
+
   return data;
 }
 
@@ -1714,25 +1703,25 @@ function parseCompareXlsxRows(rows) {
  * 비교용 파일 업로드 처리 함수
  * @param {Event} e - 파일 입력 이벤트
  */
-window.handleCompareFile = function(e) {
+window.handleCompareFile = function (e) {
   const file = e.target.files[0];
   if (!file) return;
-  
+
   compareFileName = file.name;
   const ext = file.name.split('.').pop().toLowerCase();
-  try { window.compareUploadedFileExt = ext; } catch(e) {}
+  try { window.compareUploadedFileExt = ext; } catch (e) { }
   const reader = new FileReader();
-  
-  reader.onload = function(ev) {
+
+  reader.onload = function (ev) {
     let rows;
     if (ext === 'xlsx') {
       // XLSX 파일 처리
       const data = new Uint8Array(ev.target.result);
-      const workbook = XLSX.read(data, {type: 'array'});
+      const workbook = XLSX.read(data, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false});
+      rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
       compareParsedData = parseCompareXlsxRows(rows);
-      
+
       // 파일 업로드 성공 시 버튼 활성화
       document.getElementById('showCompareBtn').disabled = false;
       showMessage(`비교 파일이 업로드되었습니다: ${compareFileName}`);
@@ -1761,7 +1750,7 @@ window.handleCompareFile = function(e) {
       document.getElementById('showCompareBtn').disabled = true;
     }
   };
-  
+
   if (ext === 'xlsx') reader.readAsArrayBuffer(file);
   else reader.readAsText(file, 'euc-kr');
 };
@@ -1774,7 +1763,7 @@ function renderCompareResult() {
     document.getElementById('compareResult').innerHTML = '<p>비교 파일을 업로드하세요.</p>';
     return;
   }
-  
+
   document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${compareFileName}</div>`;
 
   // 각종 비교 테이블들 렌더링
@@ -1797,13 +1786,13 @@ let ebsiCompareCuts = {
 function renderEbsiCutLoaderUI() {
   const container = document.getElementById('analyzeSection_compare');
   if (!container) return;
-  
+
   // 기존 UI 요소들 제거
   const prev = document.getElementById('ebsiCutLoader');
   if (prev) prev.remove();
   const prevStatus = document.getElementById('ebsiCutStatus');
   if (prevStatus) prevStatus.remove();
-  
+
   // 새로운 UI 요소 생성
   const div = document.createElement('div');
   div.id = 'ebsiCutLoader';
@@ -1822,15 +1811,15 @@ function renderEbsiCutLoaderUI() {
     </label>
     <button type="button" id="ebsiCutFetchBtn" class="copy-btn ml-8">EBSi 등급컷 불러오기</button>
   `;
-  
+
   container.prepend(div);
-  
+
   // 상태 표시 div 생성
   const statusDiv = document.createElement('div');
   statusDiv.id = 'ebsiCutStatus';
   statusDiv.className = 'status-text';
   container.insertBefore(statusDiv, div.nextSibling);
-  
+
   // 초기화 함수들 실행
   setTimeout(() => {
     loadEbsiYearList();
@@ -1844,19 +1833,19 @@ function renderEbsiCutLoaderUI() {
 async function loadEbsiYearList() {
   const sel = document.getElementById('ebsiYearSelect');
   sel.innerHTML = '<option>로딩중...</option>';
-  
+
   try {
-    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutYearList.ajax', { 
-      method: 'POST' 
+    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutYearList.ajax', {
+      method: 'POST'
     });
     const data = await res.json();
     sel.innerHTML = '';
-    
+
     // 연도 옵션들 추가
     data.result.forEach(y => {
-      sel.innerHTML += `<option value="${y.code}">${y.value-1}</option>`;
+      sel.innerHTML += `<option value="${y.code}">${y.value - 1}</option>`;
     });
-    
+
     sel.onchange = loadEbsiMonthList; // 연도 변경 시 월 목록 업데이트
     loadEbsiMonthList(); // 초기 월 목록 로드
   } catch (e) {
@@ -1871,16 +1860,16 @@ async function loadEbsiMonthList() {
   const year = document.getElementById('ebsiYearSelect').value;
   const sel = document.getElementById('ebsiMonthSelect');
   sel.innerHTML = '<option>로딩중...</option>';
-  
+
   try {
     const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutMonthList.ajax', {
       method: 'POST',
-      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `year=${year}&stdntGrd=1`
     });
     const data = await res.json();
     sel.innerHTML = '';
-    
+
     // 월 옵션들 추가
     data.result.forEach(m => {
       sel.innerHTML += `<option value="${m.code}">${m.value}월</option>`;
@@ -1898,12 +1887,12 @@ async function loadEbsiMonthList() {
 function parseEbsiCutHtml(html) {
   const kor = [];
   const math = [];
-  
+
   try {
     const div = document.createElement('div');
     div.innerHTML = html;
     const tables = div.querySelectorAll('.col_6 table');
-    
+
     // 국어 등급컷 추출
     if (tables[0]) {
       const trs = tables[0].querySelectorAll('tbody tr');
@@ -1912,7 +1901,7 @@ function parseEbsiCutHtml(html) {
         if (row) kor.push(Number(row.children[2].innerText.trim()) || 0);
       }
     }
-    
+
     // 수학 등급컷 추출
     if (tables[1]) {
       const trs = tables[1].querySelectorAll('tbody tr');
@@ -1921,7 +1910,7 @@ function parseEbsiCutHtml(html) {
         if (row) math.push(Number(row.children[2].innerText.trim()) || 0);
       }
     }
-  } catch(e) {
+  } catch (e) {
     showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다.\n" + e.message);
   }
   return { korean: kor, math: math };
@@ -1930,66 +1919,66 @@ function parseEbsiCutHtml(html) {
  * 비교용 EBSi 등급컷을 불러와서 저장하는 함수
  */
 async function fetchEbsiCompareCuts() {
-    const year = document.getElementById('ebsiYearSelect').value;
-    const month = document.getElementById('ebsiMonthSelect').value;
-    const status = document.getElementById('ebsiCutStatus');
-    showLoading();
-    
-    try {
-      const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutList.ajax', {
-        method: 'POST',
-        headers: {
-          'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'
-        },
-        body: `year=${year}&stdntGrd=1&month=${month}&subjCd=4203,3103,1103,2105`
-      });
-      const html = await res.text();
-      const cuts = parseEbsiCutHtml(html);
-      hideLoading();
-      
-      if (cuts.korean.length < 3 || cuts.math.length < 3) throw new Error('등급컷 파싱 실패');
-      
-      ebsiCompareCuts.korean = cuts.korean;
-      ebsiCompareCuts.math = cuts.math;
-      showMessage(`EBSi에서 ${year-1}년 ${month}월 등급컷을 불러왔습니다.`);
-      
-      // 비교 테이블들 업데이트
-      renderCompareGradeTable();
-      renderCompareStatsTables();
-      renderGradeDistTable();
-      renderGrade12RatioTable();
-    } catch (e) {
-      showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다." + e.message);
-    }
+  const year = document.getElementById('ebsiYearSelect').value;
+  const month = document.getElementById('ebsiMonthSelect').value;
+  const status = document.getElementById('ebsiCutStatus');
+  showLoading();
+
+  try {
+    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutList.ajax', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+      },
+      body: `year=${year}&stdntGrd=1&month=${month}&subjCd=4203,3103,1103,2105`
+    });
+    const html = await res.text();
+    const cuts = parseEbsiCutHtml(html);
+    hideLoading();
+
+    if (cuts.korean.length < 3 || cuts.math.length < 3) throw new Error('등급컷 파싱 실패');
+
+    ebsiCompareCuts.korean = cuts.korean;
+    ebsiCompareCuts.math = cuts.math;
+    showMessage(`EBSi에서 ${year - 1}년 ${month}월 등급컷을 불러왔습니다.`);
+
+    // 비교 테이블들 업데이트
+    renderCompareGradeTable();
+    renderCompareStatsTables();
+    renderGradeDistTable();
+    renderGrade12RatioTable();
+  } catch (e) {
+    showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다." + e.message);
   }
-  
-  // ------------------- 비교 분석 테이블 렌더링 함수들 -------------------
-  /**
-   * 대상 연도 정보를 가져오는 함수
-   * @returns {string} 대상 연도 또는 기본값
-   */
-  function getTargetYear() {
-    // gradeCuts에 연도 정보가 있다면 사용
-    if (gradeCuts && gradeCuts.target && gradeCuts.target.year) return gradeCuts.target.year;
-    
-    // EBSi 자동 불러오기에서 연도 입력 필드 확인
-    const yearInput = document.getElementById('ebsYear');
-    if (yearInput && yearInput.value) return yearInput.value;
-    
-    // 기본값
-    return '대상';
-  }
-  
-  /**
-   * 표준점수/백분위 비교 표를 렌더링하는 함수
-   */
-  function renderCompareGradeTable() {
-    const targetKor = gradeCuts.target.std.korean || [];
-    const targetMath = gradeCuts.target.std.math || [];
-    const compareKor = ebsiCompareCuts.korean || [];
-    const compareMath = ebsiCompareCuts.math || [];
-    
-    let html = `<table class="grade-compare-table mt-18">
+}
+
+// ------------------- 비교 분석 테이블 렌더링 함수들 -------------------
+/**
+ * 대상 연도 정보를 가져오는 함수
+ * @returns {string} 대상 연도 또는 기본값
+ */
+function getTargetYear() {
+  // gradeCuts에 연도 정보가 있다면 사용
+  if (gradeCuts && gradeCuts.target && gradeCuts.target.year) return gradeCuts.target.year;
+
+  // EBSi 자동 불러오기에서 연도 입력 필드 확인
+  const yearInput = document.getElementById('ebsYear');
+  if (yearInput && yearInput.value) return yearInput.value;
+
+  // 기본값
+  return '대상';
+}
+
+/**
+ * 표준점수/백분위 비교 표를 렌더링하는 함수
+ */
+function renderCompareGradeTable() {
+  const targetKor = gradeCuts.target.std.korean || [];
+  const targetMath = gradeCuts.target.std.math || [];
+  const compareKor = ebsiCompareCuts.korean || [];
+  const compareMath = ebsiCompareCuts.math || [];
+
+  let html = `<table class="grade-compare-table mt-18">
       <thead>
         <tr>
           <th rowspan="2">구분</th>
@@ -2004,94 +1993,94 @@ async function fetchEbsiCompareCuts() {
         </tr>
       </thead>
       <tbody>`;
-    
-    for (let i = 1; i <= 3; i++) {
-      html += `<tr>
+
+  for (let i = 1; i <= 3; i++) {
+    html += `<tr>
         <td>${i}등급</td>
-        <td>${targetKor[i-1] ?? '-'}</td>
-        <td>${compareKor[i-1] ?? '-'}</td>
-        <td>${targetMath[i-1] ?? '-'}</td>
-        <td>${compareMath[i-1] ?? '-'}</td>
+        <td>${targetKor[i - 1] ?? '-'}</td>
+        <td>${compareKor[i - 1] ?? '-'}</td>
+        <td>${targetMath[i - 1] ?? '-'}</td>
+        <td>${compareMath[i - 1] ?? '-'}</td>
       </tr>`;
-    }
-    
-    html += `</tbody></table>`;
-    
-    let tableDiv = document.getElementById('compareGradeTable');
-    if (!tableDiv) {
-      tableDiv = document.createElement('div');
-      tableDiv.id = 'compareGradeTable';
-      const container = document.getElementById('analyzeSection_compare');
-      container.appendChild(tableDiv);
-    }
-    tableDiv.innerHTML = html;
   }
-  
-  /**
-   * 비교 성적 분석 통계 테이블을 렌더링하는 함수
-   */
-  function renderCompareStatsTables() {
+
+  html += `</tbody></table>`;
+
+  let tableDiv = document.getElementById('compareGradeTable');
+  if (!tableDiv) {
+    tableDiv = document.createElement('div');
+    tableDiv.id = 'compareGradeTable';
     const container = document.getElementById('analyzeSection_compare');
-    if (!container) return;
-    
-    let statsContainer = document.getElementById('compareStatsContainer');
-    if (!statsContainer) {
-      statsContainer = document.createElement('div');
-      statsContainer.id = 'compareStatsContainer';
-      container.appendChild(statsContainer);
-    }
-    statsContainer.innerHTML = '';
-    
-    const scoreTypes = ['표준점수', '백분위'];
-    const subjects = ['국어', '수학'];
-    const statsLabels = [
-      {label: '전체 평균', key: 'avg'},
-      {label: '상위 10% 평균', key: 'top10'},
-      {label: '상위 20% 평균', key: 'top20'},
-      {label: '상위 30% 평균', key: 'top30'}
-    ];
-    
-    const targetYear = getTargetYear();
-    const compareYear = document.getElementById('ebsiYearSelect')?.value-1 || '비교';
-    
-    scoreTypes.forEach((scoreType, idx) => {
-      let html = `<h3>${scoreType} 기준 통계</h3>`;
-      html += `<table class="compare-stats-table">
+    container.appendChild(tableDiv);
+  }
+  tableDiv.innerHTML = html;
+}
+
+/**
+ * 비교 성적 분석 통계 테이블을 렌더링하는 함수
+ */
+function renderCompareStatsTables() {
+  const container = document.getElementById('analyzeSection_compare');
+  if (!container) return;
+
+  let statsContainer = document.getElementById('compareStatsContainer');
+  if (!statsContainer) {
+    statsContainer = document.createElement('div');
+    statsContainer.id = 'compareStatsContainer';
+    container.appendChild(statsContainer);
+  }
+  statsContainer.innerHTML = '';
+
+  const scoreTypes = ['표준점수', '백분위'];
+  const subjects = ['국어', '수학'];
+  const statsLabels = [
+    { label: '전체 평균', key: 'avg' },
+    { label: '상위 10% 평균', key: 'top10' },
+    { label: '상위 20% 평균', key: 'top20' },
+    { label: '상위 30% 평균', key: 'top30' }
+  ];
+
+  const targetYear = getTargetYear();
+  const compareYear = document.getElementById('ebsiYearSelect')?.value - 1 || '비교';
+
+  scoreTypes.forEach((scoreType, idx) => {
+    let html = `<h3>${scoreType} 기준 통계</h3>`;
+    html += `<table class="compare-stats-table">
         <thead>
           <tr><th rowspan="2">구분</th>`;
-      subjects.forEach(subj => {
-        html += `<th colspan="2">${subj} 영역</th>`;
-      });
-      html += `</tr>
+    subjects.forEach(subj => {
+      html += `<th colspan="2">${subj} 영역</th>`;
+    });
+    html += `</tr>
           <tr>`;
-      subjects.forEach(subj => {
-        html += `<th>${targetYear}</th><th>${compareYear}</th>`;
-      });
-      html += `</tr>
+    subjects.forEach(subj => {
+      html += `<th>${targetYear}</th><th>${compareYear}</th>`;
+    });
+    html += `</tr>
         </thead>
         <tbody>`;
-      
-      statsLabels.forEach(stat => {
-        html += `<tr><td>${stat.label}</td>`;
-        subjects.forEach(subj => {
-          const v1 = getSubjectStat(parsedData, subj, scoreType, stat.key);
-          const v2 = getSubjectStat(compareParsedData, subj, scoreType, stat.key);
-          html += `<td>${v1 ?? '-'}</td><td>${v2 ?? '-'}</td>`;
-        });
-        html += `</tr>`;
+
+    statsLabels.forEach(stat => {
+      html += `<tr><td>${stat.label}</td>`;
+      subjects.forEach(subj => {
+        const v1 = getSubjectStat(parsedData, subj, scoreType, stat.key);
+        const v2 = getSubjectStat(compareParsedData, subj, scoreType, stat.key);
+        html += `<td>${v1 ?? '-'}</td><td>${v2 ?? '-'}</td>`;
       });
-      html += `</tbody></table>`;
-      statsContainer.innerHTML += html;
+      html += `</tr>`;
     });
-  }
-  
-  /**
-   * 비교 분석 등급별 인원 현황 테이블을 렌더링하는 함수
-   */
-  function renderGradeDistTable() {
-    const container = document.getElementById('analyzeSection_compare');
+    html += `</tbody></table>`;
+    statsContainer.innerHTML += html;
+  });
+}
+
+/**
+ * 비교 분석 등급별 인원 현황 테이블을 렌더링하는 함수
+ */
+function renderGradeDistTable() {
+  const container = document.getElementById('analyzeSection_compare');
   if (!container) return;
-  
+
   let distContainer = document.getElementById('gradeDistContainer');
   if (!distContainer) {
     distContainer = document.createElement('div');
@@ -2099,243 +2088,225 @@ async function fetchEbsiCompareCuts() {
     container.appendChild(distContainer);
   }
   distContainer.innerHTML = '';
-  
+
   const subjects = ['국어', '수학', '영어'];
-  const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
-  const grades = [1,2,3,4,5,6,7,8,9];
-  
-  let html = `<div class="analysis-header"><h3>등급별 인원 현황</h3><div class="btn-container"></div></div>`;
-  html += `<button class="copy-btn" onclick="showComparisonBarCharts()">그래프 보기</button>`;
+  const subjectMap = { '국어': 'korean', '수학': 'math', '영어': 'english' };
+  const grades = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  let html = `<div class="analysis-header"><h3>등급별 인원 현황 <button class="chart-toggle-btn" onclick="openComparisonChartModal()" title="그래프 보기">&#9632; 그래프</button></h3></div>`;
   html += `<table class="grade-dist-table">
       <thead>
         <tr><th rowspan="2">구분</th>`;
-    subjects.forEach(subj => {
-      html += `<th colspan="2">${subj} 영역</th>`;
-    });
-    html += `</tr>
+  subjects.forEach(subj => {
+    html += `<th colspan="2">${subj} 영역</th>`;
+  });
+  html += `</tr>
         <tr>`;
-    subjects.forEach(subj => {
-      html += `<th>인원</th><th>비율</th>`;
-    });
-    html += `</tr>
+  subjects.forEach(subj => {
+    html += `<th>인원</th><th>비율</th>`;
+  });
+  html += `</tr>
       </thead>
       <tbody>`;
-    
-    grades.forEach(g => {
-      html += `<tr><td>${g}등급</td>`;
-      subjects.forEach(subj => {
-        const subjKey = subjectMap[subj];
-        // 기준 파일: 등급컷 기준 (올바른 키 사용)
-        const base = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-        // 비교 파일: 토글에 따라 기록 등급 또는 등급컷 기준
-        let comp;
-        if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-          comp = getGradeDistByRecordedGrade(compareParsedData, subj);
-        } else {
-          const prevExt = window.uploadedFileExt;
-          window.uploadedFileExt = window.compareUploadedFileExt;
-          try {
-            comp = getGradeDistByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-          } finally {
-            window.uploadedFileExt = prevExt;
-          }
-        }
-        html += `<td>${base.dist[g-1] ?? '-'} / ${comp.dist[g-1] ?? '-'}</td><td>${base.ratio[g-1] ?? '-'} / ${comp.ratio[g-1] ?? '-'}</td>`;
-      });
-      html += `</tr>`;
-    });
-    html += `</tbody></table>`;
 
-    html += `</table>
-  <div id="comparisonCharts" style="display:none; margin-top:20px;">
-    <div style="display:flex; gap:20px; flex-wrap:wrap;">
-      <div><h4>국어</h4><canvas id="compareKoreanChart" width="400" height="300"></canvas></div>
-      <div><h4>수학</h4><canvas id="compareMathChart" width="400" height="300"></canvas></div>
-      <div><h4>영어</h4><canvas id="compareEnglishChart" width="400" height="300"></canvas></div>
-    </div>
-    <button class="copy-btn" onclick="hideChart('comparisonCharts')">그래프 숨기기</button>
-  </div>`;
-    distContainer.innerHTML = html;
-  }
-  
-  /**
-   * 비교 분석 1,2등급 비율 테이블을 렌더링하는 함수
-   */
-  function renderGrade12RatioTable() {
-    const container = document.getElementById('analyzeSection_compare');
-    if (!container) return;
-    
-    let ratioContainer = document.getElementById('grade12RatioContainer');
-    if (!ratioContainer) {
-      ratioContainer = document.createElement('div');
-      ratioContainer.id = 'grade12RatioContainer';
-      container.appendChild(ratioContainer);
-    }
-    ratioContainer.innerHTML = '';
-    
-    const subjects = ['국어', '수학', '영어'];
-    const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
-    
-    let html = `<div class="analysis-header"><h3>1,2등급 비율</h3><div class="btn-container"></div></div>`;
-    html += `<button class="copy-btn" onclick="toggleGrade12ComparisonChart(this)">그래프 보기</button>`;
-    html += `<table class="grade-12-ratio-table">
-      <thead>
-        <tr><th>구분</th>`;
-    subjects.forEach(subj => {
-      html += `<th>${subj} 영역</th>`;
-    });
-    html += `</tr>
-      </thead>
-      <tbody>`;
-    
-    html += `<tr><td>인원 및 비율 (대상)</td>`;
+  grades.forEach(g => {
+    html += `<tr><td>${g}등급</td>`;
     subjects.forEach(subj => {
       const subjKey = subjectMap[subj];
-      const v = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      html += `<td>${v.cnt} / ${v.ratio}</td>`;
-    });
-    html += `</tr>`;
-    
-    html += `<tr><td>인원 및 비율 (비교)</td>`;
-    subjects.forEach(subj => {
-      let v;
+      const base = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      let comp;
       if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-        v = get12GradeByRecordedGrade(compareParsedData, subj);
+        comp = getGradeDistByRecordedGrade(compareParsedData, subj);
       } else {
         const prevExt = window.uploadedFileExt;
         window.uploadedFileExt = window.compareUploadedFileExt;
         try {
-          const subjKey = subjectMap[subj];
-          v = get12GradeByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+          comp = getGradeDistByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
         } finally {
           window.uploadedFileExt = prevExt;
         }
       }
-      html += `<td>${v.cnt} / ${v.ratio}</td>`;
+      html += `<td>${base.dist[g - 1] ?? '-'} / ${comp.dist[g - 1] ?? '-'}</td><td>${base.ratio[g - 1] ?? '-'} / ${comp.ratio[g - 1] ?? '-'}</td>`;
     });
     html += `</tr>`;
-    html += `</tbody></table>`;
-    html += `</table>
-  <div id="grade12Chart" class="hidden mt-20">
-    <canvas id="grade12ComparisonChart" width="500" height="300"></canvas>
-  </div>`;
-  
-    ratioContainer.innerHTML = html;
+  });
+  html += `</tbody></table>`;
+  distContainer.innerHTML = html;
+}
+
+/**
+ * 비교 분석 1,2등급 비율 테이블을 렌더링하는 함수
+ */
+function renderGrade12RatioTable() {
+  const container = document.getElementById('analyzeSection_compare');
+  if (!container) return;
+
+  let ratioContainer = document.getElementById('grade12RatioContainer');
+  if (!ratioContainer) {
+    ratioContainer = document.createElement('div');
+    ratioContainer.id = 'grade12RatioContainer';
+    container.appendChild(ratioContainer);
   }
-  
-  // ------------------- 통계 계산 유틸리티 함수 -------------------
-  /**
-   * 과목별 통계를 계산하는 함수
-   * @param {Array} data - 학생 데이터 배열
-   * @param {string} subject - 과목명
-   * @param {string} scoreType - 점수 타입 ('원점수', '표준점수', '백분위')
-   * @param {string} statKey - 통계 타입 ('avg', 'top10', 'top20', 'top30')
-   * @returns {string} 계산된 통계값
-   */
-  function getSubjectStat(data, subject, scoreType, statKey) {
-    const scores = data.map(s => Number(s[subject]?.[scoreType] ?? '')).filter(v => !isNaN(v));
-    if (!scores.length) return '-';
-    
-    scores.sort((a, b) => b - a); // 내림차순 정렬
-    
-    if (statKey === 'avg') {
-      return (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(2);
+  ratioContainer.innerHTML = '';
+
+  const subjects = ['국어', '수학', '영어'];
+  const subjectMap = { '국어': 'korean', '수학': 'math', '영어': 'english' };
+
+  let html = `<div class="analysis-header"><h3>1,2등급 비율 <button class="chart-toggle-btn" onclick="openGrade12ChartModal()" title="그래프 보기">&#9632; 그래프</button></h3><div class="btn-container"></div></div>`;
+  html += `<table class="grade-12-ratio-table">
+      <thead>
+        <tr><th>구분</th>`;
+  subjects.forEach(subj => {
+    html += `<th>${subj} 영역</th>`;
+  });
+  html += `</tr>
+      </thead>
+      <tbody>`;
+
+  html += `<tr><td>인원 및 비율 (대상)</td>`;
+  subjects.forEach(subj => {
+    const subjKey = subjectMap[subj];
+    const v = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+    html += `<td>${v.cnt} / ${v.ratio}</td>`;
+  });
+  html += `</tr>`;
+
+  html += `<tr><td>인원 및 비율 (비교)</td>`;
+  subjects.forEach(subj => {
+    let v;
+    if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
+      v = get12GradeByRecordedGrade(compareParsedData, subj);
+    } else {
+      const prevExt = window.uploadedFileExt;
+      window.uploadedFileExt = window.compareUploadedFileExt;
+      try {
+        const subjKey = subjectMap[subj];
+        v = get12GradeByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      } finally {
+        window.uploadedFileExt = prevExt;
+      }
     }
-    if (statKey === 'top10') {
-      const count = Math.ceil(scores.length*0.1);
-      return (scores.slice(0, count).reduce((a,b)=>a+b,0)/count).toFixed(2);
-    }
-    if (statKey === 'top20') {
-      const count = Math.ceil(scores.length*0.2);
-      return (scores.slice(0, count).reduce((a,b)=>a+b,0)/count).toFixed(2);
-    }
-    if (statKey === 'top30') {
-      const count = Math.ceil(scores.length*0.3);
-      return (scores.slice(0, count).reduce((a,b)=>a+b,0)/count).toFixed(2);
-    }
-    
-    return '-';
+    html += `<td>${v.cnt} / ${v.ratio}</td>`;
+  });
+  html += `</tr>`;
+  html += `</tbody></table>`;
+
+  ratioContainer.innerHTML = html;
+}
+
+// ------------------- 통계 계산 유틸리티 함수 -------------------
+/**
+ * 과목별 통계를 계산하는 함수
+ * @param {Array} data - 학생 데이터 배열
+ * @param {string} subject - 과목명
+ * @param {string} scoreType - 점수 타입 ('원점수', '표준점수', '백분위')
+ * @param {string} statKey - 통계 타입 ('avg', 'top10', 'top20', 'top30')
+ * @returns {string} 계산된 통계값
+ */
+function getSubjectStat(data, subject, scoreType, statKey) {
+  const scores = data.map(s => Number(s[subject]?.[scoreType] ?? '')).filter(v => !isNaN(v));
+  if (!scores.length) return '-';
+
+  scores.sort((a, b) => b - a); // 내림차순 정렬
+
+  if (statKey === 'avg') {
+    return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
   }
-  
-  // ------------------- 학생 명단 관리 시스템 -------------------
-  // 학생 명단 관련 전역 변수들
-  let studentSortKey = 'sum'; // 정렬 기준
-  let studentSortDesc = true; // 정렬 방향 (내림차순)
-  let showAllStudents = false; // 전체 학생 표시 여부
-  let showStudentDetails = true; // 학년/반/번호 표시 여부
-  
-  // 학생 명단 등급 필터 상태 (1~9 기본)
-  let studentGradeFilter = {
-    kor: { min: 1, max: 9 },
-    math: { min: 1, max: 9 },
-    eng: { min: 1, max: 9 }
-  };
-  
-  // 등급 필터 값 설정 및 재렌더
-  function setStudentFilter(subjectKey) {
-    const minSel = document.getElementById(`filter_${subjectKey}_min`);
-    const maxSel = document.getElementById(`filter_${subjectKey}_max`);
-    if (!minSel || !maxSel) return;
-    let min = Number(minSel.value || '1');
-    let max = Number(maxSel.value || '9');
-    if (min > max) { const t = min; min = max; max = t; }
-    studentGradeFilter[subjectKey] = { min, max };
-    renderStudentList();
+  if (statKey === 'top10') {
+    const count = Math.ceil(scores.length * 0.1);
+    return (scores.slice(0, count).reduce((a, b) => a + b, 0) / count).toFixed(2);
   }
-  
-  function resetStudentFilters() {
-    studentGradeFilter = { kor: {min:1,max:9}, math: {min:1,max:9}, eng: {min:1,max:9} };
-    renderStudentList();
+  if (statKey === 'top20') {
+    const count = Math.ceil(scores.length * 0.2);
+    return (scores.slice(0, count).reduce((a, b) => a + b, 0) / count).toFixed(2);
   }
-  
-  /**
-   * 학생 명단을 렌더링하는 함수
-   * 정렬, 필터링, 페이징 기능을 포함
-   */
-  function renderStudentList() {
-    // 학생 데이터 가공 및 정렬
-    let students = parsedData.map(s => {
-      const kor = Number(s.국어?.표준점수||0);
-      const math = Number(s.수학?.표준점수||0);
-      const eng = Number(s.영어?.원점수||0);
-      const soc = Number(s.사회탐구?.표준점수||0);
-      const sci = Number(s.과학탐구?.표준점수||0);
-      const socGrade = getGrade(s.사회탐구?.표준점수, gradeCuts.target.std.social);
-      const sciGrade = getGrade(s.과학탐구?.표준점수, gradeCuts.target.std.science);
-      
-      return {
-        ...s,
-        kor, math, eng, soc, sci,
-        sum: kor+math+soc+sci, // 표준점수 합계
-        explore: soc+sci, // 탐구 합계
-        korGrade: getGrade(kor, gradeCuts.target.std.korean),
-        mathGrade: getGrade(math, gradeCuts.target.std.math),
-        engGrade: getGrade(eng, gradeCuts.target.raw.english),
-        exploreGrade: `${socGrade}${sciGrade}`
-      };
-    });
-    
-    // 정렬 적용
-    students.sort((a,b) => {
-      if (studentSortDesc) return (b[studentSortKey]||0)-(a[studentSortKey]||0);
-      else return (a[studentSortKey]||0)-(b[studentSortKey]||0);
-    });
-    
-    // 등급 범위 필터 적용 (영어는 원점수 컷 기준으로 산출된 등급 사용)
-    const inRange = (g, min, max) => {
-      if (g === '-' || isNaN(Number(g))) return false;
-      const n = Number(g);
-      return n >= min && n <= max;
+  if (statKey === 'top30') {
+    const count = Math.ceil(scores.length * 0.3);
+    return (scores.slice(0, count).reduce((a, b) => a + b, 0) / count).toFixed(2);
+  }
+
+  return '-';
+}
+
+// ------------------- 학생 명단 관리 시스템 -------------------
+// 학생 명단 관련 전역 변수들
+let studentSortKey = 'sum'; // 정렬 기준
+let studentSortDesc = true; // 정렬 방향 (내림차순)
+let showAllStudents = false; // 전체 학생 표시 여부
+let showStudentDetails = true; // 학년/반/번호 표시 여부
+
+// 학생 명단 등급 필터 상태 (1~9 기본)
+let studentGradeFilter = {
+  kor: { min: 1, max: 9 },
+  math: { min: 1, max: 9 },
+  eng: { min: 1, max: 9 }
+};
+
+// 등급 필터 값 설정 및 재렌더
+function setStudentFilter(subjectKey) {
+  const minSel = document.getElementById(`filter_${subjectKey}_min`);
+  const maxSel = document.getElementById(`filter_${subjectKey}_max`);
+  if (!minSel || !maxSel) return;
+  let min = Number(minSel.value || '1');
+  let max = Number(maxSel.value || '9');
+  if (min > max) { const t = min; min = max; max = t; }
+  studentGradeFilter[subjectKey] = { min, max };
+  renderStudentList();
+}
+
+function resetStudentFilters() {
+  studentGradeFilter = { kor: { min: 1, max: 9 }, math: { min: 1, max: 9 }, eng: { min: 1, max: 9 } };
+  renderStudentList();
+}
+
+/**
+ * 학생 명단을 렌더링하는 함수
+ * 정렬, 필터링, 페이징 기능을 포함
+ */
+function renderStudentList() {
+  // 학생 데이터 가공 및 정렬
+  let students = parsedData.map(s => {
+    const kor = Number(s.국어?.표준점수 || 0);
+    const math = Number(s.수학?.표준점수 || 0);
+    const eng = Number(s.영어?.원점수 || 0);
+    const soc = Number(s.사회탐구?.표준점수 || 0);
+    const sci = Number(s.과학탐구?.표준점수 || 0);
+    const socGrade = getGrade(s.사회탐구?.표준점수, gradeCuts.target.std.social);
+    const sciGrade = getGrade(s.과학탐구?.표준점수, gradeCuts.target.std.science);
+
+    return {
+      ...s,
+      kor, math, eng, soc, sci,
+      sum: kor + math + soc + sci, // 표준점수 합계
+      explore: soc + sci, // 탐구 합계
+      korGrade: getGrade(kor, gradeCuts.target.std.korean),
+      mathGrade: getGrade(math, gradeCuts.target.std.math),
+      engGrade: getGrade(eng, gradeCuts.target.raw.english),
+      exploreGrade: `${socGrade}${sciGrade}`
     };
-    students = students.filter(s => {
-      const okKor = inRange(s.korGrade, studentGradeFilter.kor.min, studentGradeFilter.kor.max);
-      const okMath = inRange(s.mathGrade, studentGradeFilter.math.min, studentGradeFilter.math.max);
-      const okEng = inRange(s.engGrade, studentGradeFilter.eng.min, studentGradeFilter.eng.max);
-      return okKor && okMath && okEng;
-    });
-    
-    // HTML 생성 시작
-    let html = `
+  });
+
+  // 정렬 적용
+  students.sort((a, b) => {
+    if (studentSortDesc) return (b[studentSortKey] || 0) - (a[studentSortKey] || 0);
+    else return (a[studentSortKey] || 0) - (b[studentSortKey] || 0);
+  });
+
+  // 등급 범위 필터 적용 (영어는 원점수 컷 기준으로 산출된 등급 사용)
+  const inRange = (g, min, max) => {
+    if (g === '-' || isNaN(Number(g))) return false;
+    const n = Number(g);
+    return n >= min && n <= max;
+  };
+  students = students.filter(s => {
+    const okKor = inRange(s.korGrade, studentGradeFilter.kor.min, studentGradeFilter.kor.max);
+    const okMath = inRange(s.mathGrade, studentGradeFilter.math.min, studentGradeFilter.math.max);
+    const okEng = inRange(s.engGrade, studentGradeFilter.eng.min, studentGradeFilter.eng.max);
+    return okKor && okMath && okEng;
+  });
+
+  // HTML 생성 시작
+  let html = `
       <div style="margin-bottom: 10px;">
         <label>
           <input type="checkbox" id="showDetailsCheckbox" ${showStudentDetails ? 'checked' : ''} onchange="toggleStudentDetails()">
@@ -2345,310 +2316,466 @@ async function fetchEbsiCompareCuts() {
       <div class="filter-controls">
         <div class="filter-group">
           <label>국어 등급
-            <select id="filter_kor_min" onchange="setStudentFilter('kor')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.kor.min===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            <select id="filter_kor_min" onchange="setStudentFilter('kor')">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}" ${studentGradeFilter.kor.min === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
             ~
-            <select id="filter_kor_max" onchange="setStudentFilter('kor')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.kor.max===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            <select id="filter_kor_max" onchange="setStudentFilter('kor')">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}" ${studentGradeFilter.kor.max === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
           </label>
           <label>수학 등급
-            <select id="filter_math_min" onchange="setStudentFilter('math')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.math.min===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            <select id="filter_math_min" onchange="setStudentFilter('math')">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}" ${studentGradeFilter.math.min === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
             ~
-            <select id="filter_math_max" onchange="setStudentFilter('math')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.math.max===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            <select id="filter_math_max" onchange="setStudentFilter('math')">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}" ${studentGradeFilter.math.max === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
           </label>
           <label>영어 등급
-            <select id="filter_eng_min" onchange="setStudentFilter('eng')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.eng.min===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            <select id="filter_eng_min" onchange="setStudentFilter('eng')">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}" ${studentGradeFilter.eng.min === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
             ~
-            <select id="filter_eng_max" onchange="setStudentFilter('eng')">${Array.from({length:9},(_,i)=>`<option value="${i+1}" ${studentGradeFilter.eng.max===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+            <select id="filter_eng_max" onchange="setStudentFilter('eng')">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}" ${studentGradeFilter.eng.max === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
           </label>
           <button class="action-btn-secondary" onclick="resetStudentFilters()">필터 초기화</button>
         </div>
       </div>
       <table id="studentListTable"><thead><tr>`;
-    
-    // 헤더 생성 (조건부 표시)
-    if (showStudentDetails) {
-      html += `<th class="no-copy">학년</th><th class="no-copy">반</th><th class="no-copy">번호</th>`;
-    }
-    html += `<th class="no-copy">이름</th>
-      <th class="sortable" onclick="sortStudentList('kor')">국어<span class="sort-indicator">${studentSortKey==='kor' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
-      <th class="sortable" onclick="sortStudentList('math')">수학<span class="sort-indicator">${studentSortKey==='math' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
-      <th class="sortable" onclick="sortStudentList('eng')">영어<span class="sort-indicator">${studentSortKey==='eng' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
-      <th class="sortable" onclick="sortStudentList('explore')">탐구<span class="sort-indicator">${studentSortKey==='explore' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
-      <th class="sortable" onclick="sortStudentList('sum')">표점합<span class="sort-indicator">${studentSortKey==='sum' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+
+  // 헤더 생성 (조건부 표시)
+  if (showStudentDetails) {
+    html += `<th class="no-copy">학년</th><th class="no-copy">반</th><th class="no-copy">번호</th>`;
+  }
+  html += `<th class="no-copy">이름</th>
+      <th class="sortable" onclick="sortStudentList('kor')">국어<span class="sort-indicator">${studentSortKey === 'kor' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('math')">수학<span class="sort-indicator">${studentSortKey === 'math' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('eng')">영어<span class="sort-indicator">${studentSortKey === 'eng' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('explore')">탐구<span class="sort-indicator">${studentSortKey === 'explore' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
+      <th class="sortable" onclick="sortStudentList('sum')">표점합<span class="sort-indicator">${studentSortKey === 'sum' ? (studentSortDesc ? ' ▲' : ' ▼') : ''}</span></th>
     </tr></thead><tbody>`;
-    
-    // 표시할 학생 수 결정
-    const showCount = showAllStudents ? students.length : 20;
-    
-    // 학생 데이터 행 생성
-    for (let i = 0; i < Math.min(students.length, showCount); i++) {
-      const s = students[i];
-      html += `<tr>`;
-      
-      if (showStudentDetails) {
-        html += `<td class="no-copy">${s.학년}</td><td class="no-copy">${s.반}</td><td class="no-copy">${s.번호}</td>`;
-      }
-      
-      html += `<td class="no-copy">${s.이름}</td>
+
+  // 표시할 학생 수 결정
+  const showCount = showAllStudents ? students.length : 20;
+
+  // 학생 데이터 행 생성
+  for (let i = 0; i < Math.min(students.length, showCount); i++) {
+    const s = students[i];
+    html += `<tr>`;
+
+    if (showStudentDetails) {
+      html += `<td class="no-copy">${s.학년}</td><td class="no-copy">${s.반}</td><td class="no-copy">${s.번호}</td>`;
+    }
+
+    html += `<td class="no-copy">${s.이름}</td>
         <td>${s.kor}(${s.korGrade})</td>
         <td>${s.math}(${s.mathGrade})</td>
         <td>(${s.engGrade})</td>
         <td>${s.explore}(${s.exploreGrade})</td>
         <td>${s.sum}</td>
       </tr>`;
-    }
-    
-    html += `</tbody></table>`;
-    
-    // 전체 보기/축소 버튼 추가
-    if (!showAllStudents && students.length > 20) {
-      html += `<button onclick="showAllStudents=true;renderStudentList();" class="copy-btn mt-12">전체(${students.length}명) 보기</button>`;
-    } else if (showAllStudents && students.length > 20) {
-      html += `<button onclick="showAllStudents=false;renderStudentList();" class="copy-btn mt-12">처음 20명만 보기</button>`;
-    }
-    
-    document.getElementById('analyzeSection_list').innerHTML = html;
   }
-  
-  /**
-   * 학생 명단 정렬 함수
-   * @param {string} key - 정렬 기준 키
-   */
-  function sortStudentList(key) {
-    if (studentSortKey === key) {
-      studentSortDesc = !studentSortDesc; // 같은 키면 방향 반전
-    } else {
-      studentSortKey = key; // 다른 키면 내림차순으로 설정
-      studentSortDesc = true;
-    }
-    renderStudentList();
+
+  html += `</tbody></table>`;
+
+  // 전체 보기/축소 버튼 추가
+  if (!showAllStudents && students.length > 20) {
+    html += `<button onclick="showAllStudents=true;renderStudentList();" class="copy-btn mt-12">전체(${students.length}명) 보기</button>`;
+  } else if (showAllStudents && students.length > 20) {
+    html += `<button onclick="showAllStudents=false;renderStudentList();" class="copy-btn mt-12">처음 20명만 보기</button>`;
   }
-  
-  /**
-   * 학년/반/번호 표시 토글 함수
-   */
-  function toggleStudentDetails() {
-    showStudentDetails = document.getElementById('showDetailsCheckbox').checked;
-    renderStudentList();
+
+  document.getElementById('analyzeSection_list').innerHTML = html;
+}
+
+/**
+ * 학생 명단 정렬 함수
+ * @param {string} key - 정렬 기준 키
+ */
+function sortStudentList(key) {
+  if (studentSortKey === key) {
+    studentSortDesc = !studentSortDesc; // 같은 키면 방향 반전
+  } else {
+    studentSortKey = key; // 다른 키면 내림차순으로 설정
+    studentSortDesc = true;
   }
-  
-  /**
-   * 점수를 등급으로 변환하는 함수
-   * @param {number} score - 학생 점수
-   * @param {Array} cuts - 등급컷 배열
-   * @returns {number|string} 등급 (1~9) 또는 '-'
-   */
-  function getGrade(score, cuts) {
-    if (!score || isNaN(score)) return '-';
-    score = Number(score);
-    
-    for (let i = 0; i < 8; i++) {
-      if (score >= (cuts[i] || 0)) return i+1;
-    }
-    return 9;
+  renderStudentList();
+}
+
+/**
+ * 학년/반/번호 표시 토글 함수
+ */
+function toggleStudentDetails() {
+  showStudentDetails = document.getElementById('showDetailsCheckbox').checked;
+  renderStudentList();
+}
+
+/**
+ * 점수를 등급으로 변환하는 함수
+ * @param {number} score - 학생 점수
+ * @param {Array} cuts - 등급컷 배열
+ * @returns {number|string} 등급 (1~9) 또는 '-'
+ */
+function getGrade(score, cuts) {
+  if (!score || isNaN(score)) return '-';
+  score = Number(score);
+
+  for (let i = 0; i < 8; i++) {
+    if (score >= (cuts[i] || 0)) return i + 1;
   }
-  
-  // ------------------- 탭 UI 초기화 시스템 -------------------
-  /**
-   * 성적 분석 탭 UI를 초기화하는 함수
-   * 페이지 로드 시 자동으로 실행되어 탭 구조를 생성
-   */
-  window.initAnalyzeTabs = function() {
-    // 탭 버튼 HTML 생성
-    let tabHtml = `
+  return 9;
+}
+
+// ------------------- 탭 UI 초기화 시스템 -------------------
+/**
+ * 성적 분석 탭 UI를 초기화하는 함수
+ * 페이지 로드 시 자동으로 실행되어 탭 구조를 생성
+ */
+window.initAnalyzeTabs = function () {
+  // 탭 버튼 HTML 생성
+  let tabHtml = `
       <div class="mb-18">
         <button id="analyzeTabBtn_all" class="analyze-tab-btn active" onclick="switchAnalyzeTab('all')">전체 성적 분석</button>
         <button id="analyzeTabBtn_compare" class="analyze-tab-btn" onclick="switchAnalyzeTab('compare')">비교 성적 분석</button>
+        <button id="analyzeTabBtn_advanced" class="analyze-tab-btn" onclick="switchAnalyzeTab('advanced')">심화 성적 분석</button>
         <button id="analyzeTabBtn_list" class="analyze-tab-btn" onclick="switchAnalyzeTab('list')">학생 명단</button>
       </div>
     `;
-    
-    // 섹션 컨테이너 HTML 생성
-    let sectionHtml = `
+
+  // 섹션 컨테이너 HTML 생성
+  let sectionHtml = `
       <div id="analyzeSection_all" class="analyze-section"></div>
       <div id="analyzeSection_compare" class="analyze-section hidden"></div>
+      <div id="analyzeSection_advanced" class="analyze-section hidden"></div>
       <div id="analyzeSection_list" class="analyze-section hidden"></div>
     `;
-    
-    // HTML을 페이지에 적용
-    document.getElementById('analyzeContent').innerHTML = tabHtml + sectionHtml;
-  
-    // 비교 성적 분석 탭 UI 동적 생성
-    document.getElementById('analyzeSection_compare').innerHTML = `
+
+  // HTML을 페이지에 적용
+  document.getElementById('analyzeContent').innerHTML = tabHtml + sectionHtml;
+
+  // 비교 성적 분석 탭 UI 동적 생성
+  document.getElementById('analyzeSection_compare').innerHTML = `
       <input type="file" id="compareUploadInput" accept=".csv,.xlsx,.xls" onchange="handleCompareFile(event)" />
       <button id="showCompareBtn" class="copy-btn" onclick="renderCompareResult()" disabled>비교 결과 보기</button>
       <div id="compareResult" class="mt-18"></div>
     `;
-  
-    // 기본적으로 전체 성적 분석 탭 활성화
-    switchAnalyzeTab('all');
-  };
 
-  // ------------------- 그래프 관련 함수 -------------------
-  /**
- * 점수 분포 그래프를 표시하는 함수
- * @param {string} scoreType - 점수 타입 ('원점수', '표준점수', '백분위')
+  // 심화 성적 분석 탭 UI 동적 생성
+  document.getElementById('analyzeSection_advanced').innerHTML = `
+      <div class="mb-16 pb-12" style="border-bottom: 1px dashed var(--border-color); color: var(--subtle-text-color); font-size: 0.9rem;">
+        <span style="color: var(--primary-color);">ⓘ 참고:</span> 교육부와 Google Gemini AI의 학생 성적 분석 자료를 참고하여 제작되었습니다.
+      </div>
+      <div class="mb-18">
+        <button id="showAdvancedBtn" class="copy-btn" onclick="renderAdvancedCharts()">데이터 새로고침</button>
+      </div>
+      
+      <div id="advancedResult" class="chart-modal-grid cols-2" style="display:none; gap: 1.5rem;">
+        
+        <!-- 1. 과목 간 상관관계 산점도 -->
+        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
+          <h4 style="margin-top:0; margin-bottom:1rem; color:var(--primary-dark);">과목 간 상관관계 산점도 (국어 vs 수학)</h4>
+          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #3b82f6;">
+            <p style="margin-top:0;">이 그래프는 <strong>학생 한 명 한 명을 점으로 나타내어 국어와 수학 성적 밸런스</strong>를 보여줍니다. 차트 상단의 <strong>학급별 지표(범례)를 클릭하시면 원하는 반 학생들만 즉시 켜고 끌 수(On/Off) 있어 선택적인 비교 분석이 가능</strong>합니다. 오른쪽 위로 뻗어갈수록 두 과목 모두 최상위권인 학생이며, 원점 방향인 왼쪽 아래로 향할수록 두 과목 모두 각별한 기초 학력 지원이 필요한 학생입니다.</p>
+            <p style="margin-bottom:0;">그래프의 오른쪽 아래 구역에 면밀하게 퍼진 점들은 수학보다 국어 영역에서 뚜렷한 강점을 지닌 학생들입니다. 반대로 왼쪽 위 구역에 치우친 점들은 국어보다 수학 영역에서 훨씬 더 두각을 나타내는 집단입니다. 극단적인 과목별 편식을 보이는 학생들을 발굴하여 전체적인 학습 시간 밸런스 점검을 돕는 개별 밀착 상담용 뷰어(Viewer)로 유용하게 동작합니다.</p>
+          </div>
+          <div style="width:100%; max-width:800px; margin:0 auto; aspect-ratio:1.5;">
+            <canvas id="advChartScatter"></canvas>
+          </div>
+        </div>
+
+        <!-- 2. 학급별 성취도 편차 양방향 차트 -->
+        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
+          <h4 style="margin-top:0; color:var(--primary-dark);">학급별 평균 성취도 편차 (학년 전체 대비)</h4>
+          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #10b981;">
+            <p style="margin-top:0;">전체 학년 평균 위치를 기준선인 0점(가운데 검은색 세로축)으로 고정했을 때, <strong>우리 반의 국어/수학 평균이 전체 학년 흐름 궤도 대비 어느 방향에 놓여 있는지(±)</strong>를 좌우 막대로 직관적으로 보여주는 그룹형 가로 막대 차트입니다.</p>
+            <p style="margin-bottom:0;">붉은색 막대는 각 반의 '국어 평균 편차'를 뜻하며, 푸른색 막대는 '수학 평균 편차'를 의미합니다. 수치가 (+) 우측으로 넓게 뻗어 있다면 해당 학급은 과목 평균이 전체 학년 평균을 이끌어가는 긍정적 시너지를 내고 있음을 뜻합니다. 반면에 (-) 좌측으로 뻗어 학년 평균에 다소 안착하지 못한 과목이 발견된다면, 교과 선생님과의 협의를 통해 우리 반의 수업 참여도나 학습 장애 요인을 다각도로 진단하고 맞춤형 피드백을 모색하는 학급 경영 전략 지표로 유용하게 동작합니다.</p>
+          </div>
+          <div style="width:100%; max-width:900px; margin:0 auto;">
+            <canvas id="advChartDiverging" style="max-height: 450px;"></canvas>
+          </div>
+        </div>
+
+        <!-- 3. 학급별 성적 밀집도 히트맵 -->
+        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
+          <h4 style="margin-top:0; color:var(--primary-dark);">학급별/등급별 성적 밀집도 히트맵 (국어/수학)</h4>
+          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #fdf2f8; border-radius: 6px; border-left: 4px solid #ec4899;">
+            <p style="margin-top:0;">1등급부터 9등급까지 전체 스펙트럼 상에서, 우리 반 학생들이 <strong>어느 등급대 구간에 눈에 띄게 많이 뭉쳐있는지를 '색상의 농도'로 진단</strong>하는 열화상(Heatmap) 형태의 도표입니다. 셀 안의 숫자는 해당 등급을 성취한 학생의 실제 인원수이며, 인원이 다수 응집하여 비율이 클수록 붉고 진한 색상으로 칠해집니다.</p>
+            <p style="margin-bottom:0;">서로 엇비슷한 평균 점수를 기록한 두 학급이라 할지라도, 이 히트맵을 살펴보면 평균의 함정에 가려진 실제 학급 생태계를 깊숙이 들여다볼 수 있습니다. 1~2등급 칸과 8~9등급 칸 양끝이 동시에 붉게 물들어 있다면 양끝으로 넓게 나뉜 성취 다양성 학급의 모습일 것이고, 4~6등급 칸 전체가 시뻘겋게 칠해져 있다면 다수의 묵직한 중위권 학생들이 튼튼한 허리띠를 형성하고 있는 학급임을 말해줍니다. 이러한 분포 특질을 읽어내어 효율적인 멘토-멘티 그룹 결성 등에 곧바로 적용해 보세요.</p>
+          </div>
+          <div id="advHeatmapContainer" style="overflow-x:auto;"></div>
+        </div>
+
+        <!-- 4. 학급별 상자 수염 (상위/중위/하위 밀집도) -->
+        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
+          <h4 style="margin-top:0; color:var(--primary-dark);">학급별 학력 편차 (상자 수염 / Box Plot)</h4>
+          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #fefce8; border-radius: 6px; border-left: 4px solid #eab308;">
+            <p style="margin-top:0;">상자 수염(Box Plot) 그림은 수십 명 학생들의 성적이 학급 내에서 어떻게 퍼져 있고 또 어떻게 핵심적으로 뭉쳐 있는지를 하나의 그림(막대와 선) 층위별로 압축해 낸 가장 다각적이고 입체적인 통계 시각화 기법입니다. (세로축 기준: 국어, 수학 표준점수 합산치)</p>
+            <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">
+                <li style="margin-bottom:0.3rem;"><strong>연한 바탕 회색선 (최대~최소 범위):</strong> 해당 반에서 가장 높은 1등 학생의 점수(상단 끝)부터 기초선에 있는 학생의 점수(하단 끝)까지, 반 구성원 전체 성적이 뻗어 있는 폭넓은 최외곽 학력 스펙트럼을 의미합니다. 위아래로 길면 길수록 반 내에 다양한 층위와 배경의 학생들이 존재함을 나타냅니다.</li>
+                <li style="margin-bottom:0.3rem;"><strong>보라색 진한 박스 (핵심 중위권 50% 구간):</strong> 이른바 상위 25% 지점(Q3) 컷오프에서부터 하위 25% 지점(Q1) 컷오프까지. 반 구성원의 <strong>'메인 허리 50% 층'</strong> 학생들이 옹기종기 모여 있는 골목입니다. 보라색 박스의 상하 꼬리가 짧고 뭉툭하다면 절반 이상의 학생들이 비슷한 영역대에서 오밀조밀 학업에 임하고 있다는 의미이며 반대로 길게 늘어났다면 메인 허리층 학생들의 폭이 매우 여유롭다는 뜻입니다.</li>
+                <li><strong>가운데 두꺼운 빨간 선 (중앙값, Median):</strong> 반 전체 학생을 성적순으로 1렬 줄 세웠을 때, 정확히 정중앙 공간에 속하는 학생의 점수입니다.</li>
+            </ul>
+          </div>
+          <div style="width:100%; max-width:900px; margin:0 auto;">
+            <canvas id="advChartBoxplot" style="max-height: 400px;"></canvas>
+          </div>
+        </div>
+      </div>
+    `;
+
+  // 기본적으로 전체 성적 분석 탭 활성화
+  switchAnalyzeTab('all');
+};
+
+/**
+ * 심화 분석 탭의 4가지 차트를 모두 그립니다.
  */
+window.renderAdvancedCharts = function () {
+  if (!parsedData || parsedData.length === 0) {
+    if (typeof showMessage === 'function') showMessage('파싱된 정상적인 데이터가 없습니다. 1단계 성적 파일을 먼저 업로드해주세요.');
+    return;
+  }
+
+  document.getElementById('advancedResult').style.display = 'grid';
+
+  // 1. 과목 간 상관관계 산점도 (학급별 다중 데이터셋 전면 렌더링)
+  window.analysisChart.createAdvScatterChart('advChartScatter', parsedData);
+
+  // 2. 학급별 성취도 편차 양방향 차트 (국어/수학 그룹형)
+  window.analysisChart.createAdvDivergingBarChart('advChartDiverging', parsedData);
+
+  // 3. 학급별/등급별 성적 밀집도 히트맵 (HTML Table 기반)
+  const heatmapContainer = document.getElementById('advHeatmapContainer');
+  heatmapContainer.innerHTML = ''; // 초기화
+  window.analysisChart.renderAdvHeatmap(heatmapContainer, parsedData);
+
+  // 4. 학급별 학력 편차 (상자 수염 / Box Plot 가시화)
+  window.analysisChart.createAdvBoxplotChart('advChartBoxplot', parsedData);
+};
+
+// ------------------- 그래프 관련 함수 -------------------
+/**
+* 점수 분포 그래프를 표시하는 함수
+* @param {string} scoreType - 점수 타입 ('원점수', '표준점수', '백분위')
+*/
 function showScoreDistributionChart(scoreType) {
-    document.getElementById(`chart_${scoreType}`).style.display = 'block';
-    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
-    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
-  }
-  
-  /**
-   * 등급별 원형 그래프를 표시하는 함수 (국어, 수학, 영어)
-   */
-  function showGradePieCharts() {
-    document.getElementById('gradeCharts').style.display = 'block';
-    const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
-    const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
-    const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
-    
-    window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
-    window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
-    window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
-  }
-  
-  /**
-   * 탐구 과목 원형 그래프를 표시하는 함수 (사회탐구, 과학탐구)
-   */
-  function showExploreGradePieCharts() {
-    document.getElementById('exploreCharts').style.display = 'block';
-    const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
-    const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
-    
-    window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
-    window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
-  }
-  
-  /**
-   * 비교 막대 그래프를 표시하는 함수
-   */
-  function showComparisonBarCharts() {
-    document.getElementById('comparisonCharts').style.display = 'block';
+  document.getElementById(`chart_${scoreType}`).style.display = 'block';
+  window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
+  window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
+}
+
+/**
+ * 등급별 원형 그래프를 표시하는 함수 (국어, 수학, 영어)
+ */
+function showGradePieCharts() {
+  document.getElementById('gradeCharts').style.display = 'block';
+  const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
+  const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
+  const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
+
+  window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
+  window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
+  window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
+}
+
+/**
+ * 탐구 과목 원형 그래프를 표시하는 함수 (사회탐구, 과학탐구)
+ */
+function showExploreGradePieCharts() {
+  document.getElementById('exploreCharts').style.display = 'block';
+  const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
+  const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
+
+  window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
+  window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
+}
+
+/**
+ * 비교 막대 그래프를 표시하는 함수
+ */
+function openComparisonChartModal() {
+  openChartModal('비교 분석 그래프', function (body) {
     const subjects = ['국어', '수학', '영어'];
-    const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
-    
+    const subjectMap = { '국어': 'korean', '수학': 'math', '영어': 'english' };
+
+    // 등급별 인원 비교
+    const h1 = document.createElement('h4');
+    h1.textContent = '등급별 인원 비교';
+    h1.style.width = '100%';
+    h1.style.textAlign = 'center';
+    h1.style.marginBottom = '1rem';
+    body.appendChild(h1);
+
+    const grid1 = document.createElement('div');
+    grid1.className = 'chart-modal-grid cols-3';
+    body.appendChild(grid1);
+
     subjects.forEach(subj => {
       const subjKey = subjectMap[subj];
+      const div = document.createElement('div');
+      div.style.width = '100%';
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_compare_' + subjKey;
+      cv.width = 360; cv.height = 260;
+      div.appendChild(cv);
+      grid1.appendChild(div);
       const targetData = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      const compareData = getGradeDistByRecordedGrade(compareParsedData, subj);
-      window.analysisChart.createComparisonBarChart(`compare${subjKey.charAt(0).toUpperCase() + subjKey.slice(1)}Chart`, targetData, compareData, subj);
+      let compareData;
+      if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
+        compareData = getGradeDistByRecordedGrade(compareParsedData, subj);
+      } else {
+        compareData = getGradeDistByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      }
+      window.analysisChart.createComparisonBarChart(cv.id, targetData, compareData, subj);
     });
-  }
-  
-  /**
-   * 1,2등급 비율 비교 그래프를 표시하는 함수
-   */
-  function showGrade12ComparisonChart() {
-    document.getElementById('grade12Chart').style.display = 'block';
+    // 표준점수 분포 비교
+    const h2 = document.createElement('h4');
+    h2.textContent = '표준점수 분포 비교';
+    h2.style.width = '100%';
+    h2.style.textAlign = 'center';
+    h2.style.marginTop = '2rem';
+    h2.style.marginBottom = '1rem';
+    body.appendChild(h2);
+
+    const grid2 = document.createElement('div');
+    grid2.className = 'chart-modal-grid cols-2';
+    body.appendChild(grid2);
+
+    ['국어', '수학'].forEach(subj => {
+      const subjKey = subjectMap[subj];
+      const div = document.createElement('div');
+      div.style.width = '100%';
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_std_' + subjKey;
+      cv.width = 360; cv.height = 260;
+      div.appendChild(cv);
+      grid2.appendChild(div);
+      window.analysisChart.createStdScoreComparisonChart(cv.id, parsedData, compareParsedData, subj);
+    });
+  });
+}
+
+/**
+ * 1,2등급 비율 비교 그래프를 모달로 표시하는 함수
+ */
+function openGrade12ChartModal() {
+  openChartModal('1,2등급 비율 비교', function (body) {
     const subjects = ['국어', '수학', '영어'];
-    const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
-    
+    const subjectMap = { '국어': 'korean', '수학': 'math', '영어': 'english' };
     const targetData = {};
     const compareData = {};
-    
+
     subjects.forEach(subj => {
       const subjKey = subjectMap[subj];
       targetData[subjKey] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      compareData[subjKey] = get12GradeByRecordedGrade(compareParsedData, subj);
-    });
-    
-    window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
-  }
-
-  // 7-2. 탐구 과목 영역별 점수 분포 그래프
-  function showExploreDistributionChart(scoreType) {
-    document.getElementById(`exploreChart_${scoreType}`).style.display = 'block';
-    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
-    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
-  }
-  
-  /**
-   * 그래프를 숨기는 함수
-   * @param {string} chartId - 숨길 그래프 컨테이너 ID
-   */
-  function hideChart(chartId) {
-    document.getElementById(chartId).style.display = 'none';
-  }
-  
-  // ------------------- 페이지 로드 시 자동 초기화 -------------------
-  // DOM이 완전히 로드된 후 탭 UI 초기화 실행
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(window.initAnalyzeTabs, 0);
-  } else {
-    window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
-  }
-
-  // ------------------- 과목 조합 통계 유틸 -------------------
-  // 사용자 정의 조합 전역 상태 (재선언 방지)
-  if (typeof comboScoreType === 'undefined') {
-    var comboScoreType = 'auto'; // 'auto' | '표준점수' | '원점수' | '백분위'
-  }
-  if (typeof comboSelections === 'undefined') {
-    var comboSelections = { kor: true, math: true, explore: true }; // 기본: 국+수+탐
-  }
-
-  function getUseStdForCombo() {
-    if (comboScoreType === '표준점수') return true;
-    if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
-    // auto: XLSX는 표준, CSV는 사용자 토글 반영
-    if (window.uploadedFileExt === 'xlsx') return true;
-    if (window.uploadedFileExt === 'csv') return !!window.csvAnalysisUseStd;
-    return false;
-  }
-
-  function getScoreBySubjectAndType(s, subject) {
-    if (comboScoreType === '백분위') {
-      if (subject === '탐구') {
-        const a = Number(s.사회탐구?.백분위 ?? NaN);
-        const b = Number(s.과학탐구?.백분위 ?? NaN);
-        return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+      if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
+        compareData[subjKey] = get12GradeByRecordedGrade(compareParsedData, subj);
+      } else {
+        compareData[subjKey] = get12GradeByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
       }
-      return Number(s[subject]?.백분위 ?? NaN);
-    }
-    const useStd = getUseStdForCombo();
-    return getScoreBySubject(s, subject, useStd);
-  }
+    });
 
-  function getScoreBySubject(s, subject, useStd) {
-    if (subject === '국어' || subject === '수학') {
-      return Number(useStd ? (s[subject]?.표준점수 ?? NaN) : (s[subject]?.원점수 ?? NaN));
-    }
+    const div = document.createElement('div');
+    div.style.width = '100%';
+    div.style.maxWidth = '640px';
+    div.style.margin = '0 auto';
+    div.style.display = 'flex';
+    div.style.justifyContent = 'center';
+    const cv = document.createElement('canvas');
+    cv.id = 'modal_grade12_chart';
+    cv.width = 500; cv.height = 300;
+    div.appendChild(cv);
+    body.appendChild(div);
+
+    window.analysisChart.createGrade12ComparisonChart(cv.id, targetData, compareData);
+  });
+}
+
+// 7-2. 탐구 과목 영역별 점수 분포 그래프
+function showExploreDistributionChart(scoreType) {
+  document.getElementById(`exploreChart_${scoreType}`).style.display = 'block';
+  window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
+  window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
+}
+
+/**
+ * 그래프를 숨기는 함수
+ * @param {string} chartId - 숨길 그래프 컨테이너 ID
+ */
+function hideChart(chartId) {
+  document.getElementById(chartId).style.display = 'none';
+}
+
+// ------------------- 페이지 로드 시 자동 초기화 -------------------
+// DOM이 완전히 로드된 후 탭 UI 초기화 실행
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(window.initAnalyzeTabs, 0);
+} else {
+  window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
+}
+
+// ------------------- 과목 조합 통계 유틸 -------------------
+// 사용자 정의 조합 전역 상태 (재선언 방지)
+if (typeof comboScoreType === 'undefined') {
+  var comboScoreType = 'auto'; // 'auto' | '표준점수' | '원점수' | '백분위'
+}
+if (typeof comboSelections === 'undefined') {
+  var comboSelections = { kor: true, math: true, explore: true }; // 기본: 국+수+탐
+}
+
+function getUseStdForCombo() {
+  if (comboScoreType === '표준점수') return true;
+  if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
+  // auto: XLSX는 표준, CSV는 사용자 토글 반영
+  if (window.uploadedFileExt === 'xlsx') return true;
+  if (window.uploadedFileExt === 'csv') return !!window.csvAnalysisUseStd;
+  return false;
+}
+
+function getScoreBySubjectAndType(s, subject) {
+  if (comboScoreType === '백분위') {
     if (subject === '탐구') {
-      const a = Number(useStd ? (s.사회탐구?.표준점수 ?? NaN) : (s.사회탐구?.원점수 ?? NaN));
-      const b = Number(useStd ? (s.과학탐구?.표준점수 ?? NaN) : (s.과학탐구?.원점수 ?? NaN));
-      return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+      const a = Number(s.사회탐구?.백분위 ?? NaN);
+      const b = Number(s.과학탐구?.백분위 ?? NaN);
+      return (isNaN(a) ? 0 : a) + (isNaN(b) ? 0 : b);
     }
-    return NaN;
+    return Number(s[subject]?.백분위 ?? NaN);
   }
+  const useStd = getUseStdForCombo();
+  return getScoreBySubject(s, subject, useStd);
+}
 
-  function computeComboScores(data, combo) {
-    return data.map(s => combo.reduce((sum, subj) => {
-      const v = getScoreBySubjectAndType(s, subj);
-      return sum + (isNaN(v) ? 0 : v);
-    }, 0)).filter(v => !isNaN(v));
+function getScoreBySubject(s, subject, useStd) {
+  if (subject === '국어' || subject === '수학') {
+    return Number(useStd ? (s[subject]?.표준점수 ?? NaN) : (s[subject]?.원점수 ?? NaN));
   }
-
-  function summarizeScores(scores) {
-    if (!scores.length) return { avg: '-', top10: '-', top20: '-', top30: '-' };
-    const arr = [...scores].sort((a,b)=>b-a);
-    const avg = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
-    const pct = p => {
-      const c = Math.max(1, Math.ceil(arr.length*p));
-      return (arr.slice(0,c).reduce((a,b)=>a+b,0)/c).toFixed(2);
-    };
-    return { avg, top10: pct(0.1), top20: pct(0.2), top30: pct(0.3) };
+  if (subject === '탐구') {
+    const a = Number(useStd ? (s.사회탐구?.표준점수 ?? NaN) : (s.사회탐구?.원점수 ?? NaN));
+    const b = Number(useStd ? (s.과학탐구?.표준점수 ?? NaN) : (s.과학탐구?.원점수 ?? NaN));
+    return (isNaN(a) ? 0 : a) + (isNaN(b) ? 0 : b);
   }
+  return NaN;
+}
 
-  function renderSubjectComboCardsHTML() {
-    const selected = buildSelectedCombo();
-    if (selected.length === 0) return '<p>조합을 선택하세요.</p>';
-    const combos = [ { key: 'custom', label: selected.join(' + '), subjects: selected } ];
-    let html = '<div class="subject-combo-box">';
-    combos.forEach(c => {
-      const scores = computeComboScores(parsedData, c.subjects);
-      const stats = summarizeScores(scores);
-      html += `
+function computeComboScores(data, combo) {
+  return data.map(s => combo.reduce((sum, subj) => {
+    const v = getScoreBySubjectAndType(s, subj);
+    return sum + (isNaN(v) ? 0 : v);
+  }, 0)).filter(v => !isNaN(v));
+}
+
+function summarizeScores(scores) {
+  if (!scores.length) return { avg: '-', top10: '-', top20: '-', top30: '-' };
+  const arr = [...scores].sort((a, b) => b - a);
+  const avg = (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+  const pct = p => {
+    const c = Math.max(1, Math.ceil(arr.length * p));
+    return (arr.slice(0, c).reduce((a, b) => a + b, 0) / c).toFixed(2);
+  };
+  return { avg, top10: pct(0.1), top20: pct(0.2), top30: pct(0.3) };
+}
+
+function renderSubjectComboCardsHTML() {
+  const selected = buildSelectedCombo();
+  if (selected.length === 0) return '<p>조합을 선택하세요.</p>';
+  const combos = [{ key: 'custom', label: selected.join(' + '), subjects: selected }];
+  let html = '<div class="subject-combo-box">';
+  combos.forEach(c => {
+    const scores = computeComboScores(parsedData, c.subjects);
+    const stats = summarizeScores(scores);
+    html += `
       <div class="table-container p-12">
         <h4 class="mt-6 mb-10">${c.label}</h4>
         <table><thead><tr><th>지표</th><th>값</th></tr></thead>
@@ -2659,427 +2786,293 @@ function showScoreDistributionChart(scoreType) {
           <tr><td>상위 30% 평균</td><td>${stats.top30}</td></tr>
         </tbody></table>
       </div>`;
-    });
-    html += '</div>';
-    return html;
-  }
+  });
+  html += '</div>';
+  return html;
+}
 
-  function buildSelectedCombo() {
-    const arr = [];
-    if (comboSelections.kor) arr.push('국어');
-    if (comboSelections.math) arr.push('수학');
-    if (comboSelections.explore) arr.push('탐구');
-    return arr;
-  }
+function buildSelectedCombo() {
+  const arr = [];
+  if (comboSelections.kor) arr.push('국어');
+  if (comboSelections.math) arr.push('수학');
+  if (comboSelections.explore) arr.push('탐구');
+  return arr;
+}
 
-  window.renderAnalyzeCombos = function(){
-    // 전체 분석 섹션 내 조합 컨트롤/카드 영역 재구성
-    const container = document.getElementById('comboContainer');
-    if (container) {
-      container.innerHTML = renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML();
-    }
+window.renderAnalyzeCombos = function () {
+  // 전체 분석 섹션 내 조합 컨트롤/카드 영역 재구성
+  const container = document.getElementById('comboContainer');
+  if (container) {
+    container.innerHTML = renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML();
   }
+}
 
-  function renderSubjectComboControlsHTML() {
-    return `
+function renderSubjectComboControlsHTML() {
+  return `
     <div class="filter-controls">
       <div class="filter-group">
-        <label><input type="checkbox" id="combo_kor" ${comboSelections.kor?'checked':''} onchange="toggleComboSubject('kor')">국어</label>
-        <label><input type="checkbox" id="combo_math" ${comboSelections.math?'checked':''} onchange="toggleComboSubject('math')">수학</label>
-        <label><input type="checkbox" id="combo_explore" ${comboSelections.explore?'checked':''} onchange="toggleComboSubject('explore')">탐구(2)</label>
+        <label><input type="checkbox" id="combo_kor" ${comboSelections.kor ? 'checked' : ''} onchange="toggleComboSubject('kor')">국어</label>
+        <label><input type="checkbox" id="combo_math" ${comboSelections.math ? 'checked' : ''} onchange="toggleComboSubject('math')">수학</label>
+        <label><input type="checkbox" id="combo_explore" ${comboSelections.explore ? 'checked' : ''} onchange="toggleComboSubject('explore')">탐구(2)</label>
         <label>점수 기준
           <select id="combo_score_type" onchange="changeComboScoreType()">
-            <option value="auto" ${comboScoreType==='auto'?'selected':''}>자동(파일 형식)</option>
-            <option value="표준점수" ${comboScoreType==='표준점수'?'selected':''}>표준점수</option>
-            <option value="원점수" ${comboScoreType==='원점수'?'selected':''}>원점수</option>
-            <option value="백분위" ${comboScoreType==='백분위'?'selected':''}>백분위</option>
+            <option value="auto" ${comboScoreType === 'auto' ? 'selected' : ''}>자동(파일 형식)</option>
+            <option value="표준점수" ${comboScoreType === '표준점수' ? 'selected' : ''}>표준점수</option>
+            <option value="원점수" ${comboScoreType === '원점수' ? 'selected' : ''}>원점수</option>
+            <option value="백분위" ${comboScoreType === '백분위' ? 'selected' : ''}>백분위</option>
           </select>
         </label>
         <button class="action-btn-secondary" onclick="renderAnalyzeCombos()">적용</button>
       </div>
     </div>`;
-  }
+}
 
-  window.toggleComboSubject = function(key) {
-    comboSelections[key] = document.getElementById(`combo_${key}`).checked;
-  };
-  window.changeComboScoreType = function() {
-    comboScoreType = document.getElementById('combo_score_type').value;
-  };
+window.toggleComboSubject = function (key) {
+  comboSelections[key] = document.getElementById(`combo_${key}`).checked;
+};
+window.changeComboScoreType = function () {
+  comboScoreType = document.getElementById('combo_score_type').value;
+};
 
-  function toggleElementVisibility(containerId, show) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    if (show) {
-      el.classList.remove('hidden');
-    } else {
-      el.classList.add('hidden');
-    }
-    // 차트 메모리 회수: 숨길 때 해당 컨테이너 내 캔버스 차트 destroy
-    if (!show) {
-      const canvases = el.querySelectorAll('canvas');
-      canvases.forEach(cv => window.analysisChart.destroyChart(cv.id));
-    }
-  }
-
-  function toggleGradePieCharts(btn) {
-    const containerId = 'gradeCharts';
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      // 초기 렌더링
-      const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
-      const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
-      const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
-      window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
-      window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
-      window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
-
-  function toggleExploreGradePieCharts(btn) {
-    const containerId = 'exploreCharts';
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
-      const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
-      window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
-      window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
-
-  function toggleScoreDistributionChart(scoreType, btn) {
-    const containerId = `chart_${scoreType}`;
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
-
-  function toggleExploreDistributionChart(scoreType, btn) {
-    const containerId = `exploreChart_${scoreType}`;
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
-
-  function toggleGrade12ComparisonChart(btn) {
-    const containerId = 'grade12Chart';
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      const subjects = ['국어', '수학', '영어'];
-      const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
-      const targetData = {};
-      const compareData = {};
-      subjects.forEach(subj => {
-        const key = subjectMap[subj];
-        targetData[key] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[key], gradeCuts.target.std[key]);
-        compareData[key] = get12GradeByRecordedGrade(compareParsedData, subj);
-      });
-      window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
-
-  // 7-2. 탐구 과목 영역별 점수 분포 그래프
-  function showExploreDistributionChart(scoreType) {
-    document.getElementById(`exploreChart_${scoreType}`).style.display = 'block';
-    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
-    window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
-  }
-  
-  /**
-   * 그래프를 숨기는 함수
-   * @param {string} chartId - 숨길 그래프 컨테이너 ID
-   */
-  function hideChart(chartId) {
-    document.getElementById(chartId).style.display = 'none';
-  }
-  
-  // ------------------- 페이지 로드 시 자동 초기화 -------------------
-  // DOM이 완전히 로드된 후 탭 UI 초기화 실행
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(window.initAnalyzeTabs, 0);
+function toggleElementVisibility(containerId, show) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (show) {
+    el.classList.remove('hidden');
   } else {
-    window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
+    el.classList.add('hidden');
   }
+  // 차트 메모리 회수: 숨길 때 해당 컨테이너 내 캔버스 차트 destroy
+  if (!show) {
+    const canvases = el.querySelectorAll('canvas');
+    canvases.forEach(cv => window.analysisChart.destroyChart(cv.id));
+  }
+}
 
-  // ------------------- 과목 조합 통계 유틸 (중복 선언 방지)
-  if (typeof comboScoreType === 'undefined') {
-    var comboScoreType = 'auto';
-  }
-  if (typeof comboSelections === 'undefined') {
-    var comboSelections = { kor: true, math: true, explore: true };
-  }
+function openGradePieChartModal() {
+  openChartModal('과목별 등급 내 인원 현황', function (body) {
+    const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
+    const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
+    const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
 
-  function getUseStdForCombo() {
-    if (comboScoreType === '표준점수') return true;
-    if (comboScoreType === '원점수' || comboScoreType === '백분위') return false;
-    if (window.uploadedFileExt === 'xlsx') return true;
-    if (window.uploadedFileExt === 'csv') return !!window.csvAnalysisUseStd;
-    return false;
-  }
+    const divContainer = document.createElement('div');
+    divContainer.className = 'chart-modal-grid cols-3';
 
-  function getScoreBySubjectAndType(s, subject) {
-    if (comboScoreType === '백분위') {
-      if (subject === '탐구') {
-        const a = Number(s.사회탐구?.백분위 ?? NaN);
-        const b = Number(s.과학탐구?.백분위 ?? NaN);
-        return (isNaN(a)?0:a) + (isNaN(b)?0:b);
-      }
-      return Number(s[subject]?.백분위 ?? NaN);
-    }
-    const useStd = getUseStdForCombo();
-    return getScoreBySubject(s, subject, useStd);
-  }
+    ['korean', 'math', 'english'].forEach((subj, i) => {
+      const labels = ['국어', '수학', '영어'];
+      const datas = [koreanData, mathData, englishData];
+      const div = document.createElement('div');
+      const h4 = document.createElement('h4');
+      h4.textContent = labels[i];
+      h4.style.textAlign = 'center';
+      div.appendChild(h4);
 
-  function getScoreBySubject(s, subject, useStd) {
-    if (subject === '국어' || subject === '수학') {
-      return Number(useStd ? (s[subject]?.표준점수 ?? NaN) : (s[subject]?.원점수 ?? NaN));
-    }
-    if (subject === '탐구') {
-      const a = Number(useStd ? (s.사회탐구?.표준점수 ?? NaN) : (s.사회탐구?.원점수 ?? NaN));
-      const b = Number(useStd ? (s.과학탐구?.표준점수 ?? NaN) : (s.과학탐구?.원점수 ?? NaN));
-      return (isNaN(a)?0:a) + (isNaN(b)?0:b);
-    }
-    return NaN;
-  }
-
-  function computeComboScores(data, combo) {
-    return data.map(s => combo.reduce((sum, subj) => {
-      const v = getScoreBySubjectAndType(s, subj);
-      return sum + (isNaN(v) ? 0 : v);
-    }, 0)).filter(v => !isNaN(v));
-  }
-
-  function summarizeScores(scores) {
-    if (!scores.length) return { avg: '-', top10: '-', top20: '-', top30: '-' };
-    const arr = [...scores].sort((a,b)=>b-a);
-    const avg = (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2);
-    const pct = p => {
-      const c = Math.max(1, Math.ceil(arr.length*p));
-      return (arr.slice(0,c).reduce((a,b)=>a+b,0)/c).toFixed(2);
-    };
-    return { avg, top10: pct(0.1), top20: pct(0.2), top30: pct(0.3) };
-  }
-
-  function renderSubjectComboCardsHTML() {
-    const selected = buildSelectedCombo();
-    if (selected.length === 0) return '<p>조합을 선택하세요.</p>';
-    const combos = [ { key: 'custom', label: selected.join(' + '), subjects: selected } ];
-    let html = '<div class="subject-combo-box">';
-    combos.forEach(c => {
-      const scores = computeComboScores(parsedData, c.subjects);
-      const stats = summarizeScores(scores);
-      html += `
-      <div class="table-container p-12">
-        <h4 class="mt-6 mb-10">${c.label}</h4>
-        <table><thead><tr><th>지표</th><th>값</th></tr></thead>
-        <tbody>
-          <tr><td>평균</td><td>${stats.avg}</td></tr>
-          <tr><td>상위 10% 평균</td><td>${stats.top10}</td></tr>
-          <tr><td>상위 20% 평균</td><td>${stats.top20}</td></tr>
-          <tr><td>상위 30% 평균</td><td>${stats.top30}</td></tr>
-        </tbody></table>
-      </div>`;
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_pie_' + subj;
+      cv.width = 250; cv.height = 250;
+      div.appendChild(cv);
+      divContainer.appendChild(div);
     });
-    html += '</div>';
-    return html;
-  }
+    body.appendChild(divContainer);
 
-  function buildSelectedCombo() {
-    const arr = [];
-    if (comboSelections.kor) arr.push('국어');
-    if (comboSelections.math) arr.push('수학');
-    if (comboSelections.explore) arr.push('탐구');
-    return arr;
-  }
+    window.analysisChart.createGradePieChart('modal_pie_korean', koreanData, '국어');
+    window.analysisChart.createGradePieChart('modal_pie_math', mathData, '수학');
+    window.analysisChart.createGradePieChart('modal_pie_english', englishData, '영어');
+  });
+}
 
-  window.renderAnalyzeCombos = function(){
-    // 전체 분석 섹션 내 조합 컨트롤/카드 영역 재구성
-    const container = document.getElementById('comboContainer');
-    if (container) {
-      container.innerHTML = renderSubjectComboControlsHTML() + renderSubjectComboCardsHTML();
-    }
-  }
+function openExploreGradePieChartModal() {
+  openChartModal('탐구 영역 등급 내 인원 현황', function (body) {
+    const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
+    const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
 
-  function renderSubjectComboControlsHTML() {
-    return `
-    <div class="filter-controls">
-      <div class="filter-group">
-        <label><input type="checkbox" id="combo_kor" ${comboSelections.kor?'checked':''} onchange="toggleComboSubject('kor')">국어</label>
-        <label><input type="checkbox" id="combo_math" ${comboSelections.math?'checked':''} onchange="toggleComboSubject('math')">수학</label>
-        <label><input type="checkbox" id="combo_explore" ${comboSelections.explore?'checked':''} onchange="toggleComboSubject('explore')">탐구(2)</label>
-        <label>점수 기준
-          <select id="combo_score_type" onchange="changeComboScoreType()">
-            <option value="auto" ${comboScoreType==='auto'?'selected':''}>자동(파일 형식)</option>
-            <option value="표준점수" ${comboScoreType==='표준점수'?'selected':''}>표준점수</option>
-            <option value="원점수" ${comboScoreType==='원점수'?'selected':''}>원점수</option>
-            <option value="백분위" ${comboScoreType==='백분위'?'selected':''}>백분위</option>
-          </select>
-        </label>
-        <button class="action-btn-secondary" onclick="renderAnalyzeCombos()">적용</button>
-      </div>
-    </div>`;
-  }
+    const divContainer = document.createElement('div');
+    divContainer.className = 'chart-modal-grid cols-2';
 
-  window.toggleComboSubject = function(key) {
-    comboSelections[key] = document.getElementById(`combo_${key}`).checked;
-  };
-  window.changeComboScoreType = function() {
-    comboScoreType = document.getElementById('combo_score_type').value;
-  };
+    ['social', 'science'].forEach((subj, i) => {
+      const labels = ['사회탐구', '과학탐구'];
+      const datas = [socialData, scienceData];
+      const div = document.createElement('div');
+      const h4 = document.createElement('h4');
+      h4.textContent = labels[i];
+      h4.style.textAlign = 'center';
+      div.appendChild(h4);
 
-  function toggleElementVisibility(containerId, show) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    if (show) {
-      el.classList.remove('hidden');
-    } else {
-      el.classList.add('hidden');
-    }
-    // 차트 메모리 회수: 숨길 때 해당 컨테이너 내 캔버스 차트 destroy
-    if (!show) {
-      const canvases = el.querySelectorAll('canvas');
-      canvases.forEach(cv => window.analysisChart.destroyChart(cv.id));
-    }
-  }
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_pie_' + subj;
+      cv.width = 250; cv.height = 250;
+      div.appendChild(cv);
+      divContainer.appendChild(div);
+    });
+    body.appendChild(divContainer);
 
-  function toggleGradePieCharts(btn) {
-    const containerId = 'gradeCharts';
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      // 초기 렌더링
-      const koreanData = getGradeDistByCut(parsedData, '국어', gradeCuts.target.raw.korean, gradeCuts.target.std.korean);
-      const mathData = getGradeDistByCut(parsedData, '수학', gradeCuts.target.raw.math, gradeCuts.target.std.math);
-      const englishData = getGradeDistByCut(parsedData, '영어', gradeCuts.target.raw.english, gradeCuts.target.std.english);
-      window.analysisChart.createGradePieChart('koreanGradeChart', koreanData, '국어');
-      window.analysisChart.createGradePieChart('mathGradeChart', mathData, '수학');
-      window.analysisChart.createGradePieChart('englishGradeChart', englishData, '영어');
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
+    window.analysisChart.createGradePieChart('modal_pie_social', socialData, '사회탐구');
+    window.analysisChart.createGradePieChart('modal_pie_science', scienceData, '과학탐구');
+  });
+}
 
-  function toggleExploreGradePieCharts(btn) {
-    const containerId = 'exploreCharts';
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      const socialData = getGradeDistByCut(parsedData, '사회탐구', gradeCuts.target.raw.social, gradeCuts.target.std.social);
-      const scienceData = getGradeDistByCut(parsedData, '과학탐구', gradeCuts.target.raw.science, gradeCuts.target.std.science);
-      window.analysisChart.createGradePieChart('socialGradeChart', socialData, '사회탐구');
-      window.analysisChart.createGradePieChart('scienceGradeChart', scienceData, '과학탐구');
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
+function openScoreDistributionModal(scoreType) {
+  openChartModal(scoreType + ' 분포', function (body) {
+    const divContainer = document.createElement('div');
+    divContainer.className = 'chart-modal-grid cols-2';
 
-  function toggleScoreDistributionChart(scoreType, btn) {
-    const containerId = `chart_${scoreType}`;
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_korean`, parsedData, '국어', scoreType);
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_math`, parsedData, '수학', scoreType);
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
+    ['korean', 'math'].forEach((subj, i) => {
+      const labels = ['국어', '수학'];
+      const div = document.createElement('div');
+      const h4 = document.createElement('h4');
+      h4.textContent = labels[i];
+      h4.style.textAlign = 'center';
+      div.appendChild(h4);
 
-  function toggleExploreDistributionChart(scoreType, btn) {
-    const containerId = `exploreChart_${scoreType}`;
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_social`, parsedData, '사회탐구', scoreType);
-      window.analysisChart.createScoreDistribution(`canvas_${scoreType}_science`, parsedData, '과학탐구', scoreType);
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_dist_' + subj;
+      cv.width = 300; cv.height = 200;
+      div.appendChild(cv);
+      divContainer.appendChild(div);
+    });
+    body.appendChild(divContainer);
 
-  function toggleGrade12ComparisonChart(btn) {
-    const containerId = 'grade12Chart';
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      const subjects = ['국어', '수학', '영어'];
-      const subjectMap = {'국어': 'korean', '수학': 'math', '영어': 'english'};
-      const targetData = {};
-      const compareData = {};
-      subjects.forEach(subj => {
-        const key = subjectMap[subj];
-        targetData[key] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[key], gradeCuts.target.std[key]);
-        compareData[key] = get12GradeByRecordedGrade(compareParsedData, subj);
-      });
-      window.analysisChart.createGrade12ComparisonChart('grade12ComparisonChart', targetData, compareData);
-      btn.textContent = '그래프 숨기기';
-    } else {
-      btn.textContent = '그래프 보기';
-    }
-  }
+    window.analysisChart.createScoreDistribution('modal_dist_korean', parsedData, '국어', scoreType);
+    window.analysisChart.createScoreDistribution('modal_dist_math', parsedData, '수학', scoreType);
+  });
+}
 
-  function toggleScoreCdfChart(scoreType, btn) {
-    const containerId = `cdf_${scoreType}`;
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      window.analysisChart.createCdfChart(`cdf_${scoreType}_korean`, parsedData, '국어', scoreType);
-      window.analysisChart.createCdfChart(`cdf_${scoreType}_math`, parsedData, '수학', scoreType);
-      btn.textContent = 'CDF 숨기기';
-    } else {
-      btn.textContent = '누적분포(CDF) 보기';
-    }
-  }
+function openScoreCdfModal(scoreType) {
+  openChartModal(scoreType + ' 누적분포(CDF)', function (body) {
+    const infoDiv = document.createElement('div');
+    infoDiv.style.textAlign = 'left';
+    infoDiv.style.background = '#f8fafc';
+    infoDiv.style.padding = '1.2rem 1.5rem';
+    infoDiv.style.borderRadius = '8px';
+    infoDiv.style.border = '1px solid #e2e8f0';
+    infoDiv.style.marginBottom = '2rem';
+    infoDiv.innerHTML = `
+        <strong style="color: var(--primary-dark); font-size: 1.05rem; display: block; margin-bottom: 0.8rem;">📊 누적분포도 (CDF) 쉽게 이해하기</strong>
+        <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6; color: #334155; font-size: 0.95rem;">
+          <li style="margin-bottom: 0.5rem;"><strong>어떤 그래프인가요?</strong> 왼쪽(낮은 점수)부터 오른쪽(높은 점수)으로 갈수록 학생들의 비율을 계속 더해나간 그래프입니다. 특정 점수에서의 Y값은 <strong>"해당 점수 이하를 받은 학생들의 비율"</strong>을 뜻합니다.</li>
+          <li style="margin-bottom: 0.5rem;"><strong>기울기의 의미:</strong> 그래프가 <strong>위로 가파르게 솟아오르는 구간</strong>은 그 점수대에 성적이 비슷한 학생들이 <strong>가장 밀집</strong>해 있다는 뜻입니다. (완만한 구간은 학생 수가 적음을 의미합니다.)</li>
+          <li><strong>기준선 읽는 법:</strong>
+            <ul style="margin-top: 0.3rem; padding-left: 1.2rem; color: #475569; list-style-type: circle;">
+              <li><strong style="color:#111827">Median (P50)</strong>: 전체 학생 중 정확히 한가운데(50%) 등수인 학생의 점수로, 체감 평균을 나타냅니다.</li>
+              <li><strong style="color:#9ca3af">P90</strong>: 하위 90% (상위 10%) 성적입니다. 상위권 학생들의 컷오프를 파악할 때 유용합니다.</li>
+              <li><strong style="color:#6b7280">P25, P75</strong>: 각각 하위 25%, 75% 지점으로 학생들의 전반적인 점수가 어느 구간에 몰려있는지(박스권) 파악할 수 있습니다.</li>
+            </ul>
+          </li>
+        </ul>
+      `;
+    body.appendChild(infoDiv);
 
-  function toggleExploreCdfChart(scoreType, btn) {
-    const containerId = `cdfExplore_${scoreType}`;
-    const el = document.getElementById(containerId);
-    const willShow = el && el.classList.contains('hidden');
-    toggleElementVisibility(containerId, willShow);
-    if (willShow) {
-      window.analysisChart.createCdfChart(`cdfExplore_${scoreType}_social`, parsedData, '사회탐구', scoreType);
-      window.analysisChart.createCdfChart(`cdfExplore_${scoreType}_science`, parsedData, '과학탐구', scoreType);
-      btn.textContent = 'CDF 숨기기';
-    } else {
-      btn.textContent = '탐구 CDF 보기';
-    }
-  }
+    const divContainer = document.createElement('div');
+    divContainer.className = 'chart-modal-grid cols-2';
+
+    ['korean', 'math'].forEach((subj, i) => {
+      const labels = ['국어', '수학'];
+      const div = document.createElement('div');
+      const h4 = document.createElement('h4');
+      h4.textContent = labels[i];
+      h4.style.textAlign = 'center';
+      div.appendChild(h4);
+
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_cdf_' + subj;
+      cv.width = 300; cv.height = 200;
+      div.appendChild(cv);
+      divContainer.appendChild(div);
+    });
+    body.appendChild(divContainer);
+
+    window.analysisChart.createCdfChart('modal_cdf_korean', parsedData, '국어', scoreType);
+    window.analysisChart.createCdfChart('modal_cdf_math', parsedData, '수학', scoreType);
+  });
+}
+
+function openExploreDistributionModal(scoreType) {
+  openChartModal(scoreType + ' 탐구 영역 분포', function (body) {
+    const divContainer = document.createElement('div');
+    divContainer.className = 'chart-modal-grid cols-2';
+
+    ['social', 'science'].forEach((subj, i) => {
+      const labels = ['사회탐구', '과학탐구'];
+      const div = document.createElement('div');
+      const h4 = document.createElement('h4');
+      h4.textContent = labels[i];
+      h4.style.textAlign = 'center';
+      div.appendChild(h4);
+
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_exp_dist_' + subj;
+      cv.width = 300; cv.height = 200;
+      div.appendChild(cv);
+      divContainer.appendChild(div);
+    });
+    body.appendChild(divContainer);
+
+    window.analysisChart.createScoreDistribution('modal_exp_dist_social', parsedData, '사회탐구', scoreType);
+    window.analysisChart.createScoreDistribution('modal_exp_dist_science', parsedData, '과학탐구', scoreType);
+  });
+}
+
+function openExploreCdfModal(scoreType) {
+  openChartModal(scoreType + ' 탐구 누적분포(CDF)', function (body) {
+    const infoDiv = document.createElement('div');
+    infoDiv.style.textAlign = 'left';
+    infoDiv.style.background = '#f8fafc';
+    infoDiv.style.padding = '1.2rem 1.5rem';
+    infoDiv.style.borderRadius = '8px';
+    infoDiv.style.border = '1px solid #e2e8f0';
+    infoDiv.style.marginBottom = '2rem';
+    infoDiv.innerHTML = `
+        <strong style="color: var(--primary-dark); font-size: 1.05rem; display: block; margin-bottom: 0.8rem;">📊 누적분포도 (CDF) 쉽게 이해하기</strong>
+        <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6; color: #334155; font-size: 0.95rem;">
+          <li style="margin-bottom: 0.5rem;"><strong>어떤 그래프인가요?</strong> 왼쪽(낮은 점수)부터 오른쪽(높은 점수)으로 갈수록 학생들의 비율을 계속 더해나간 그래프입니다. 특정 점수에서의 Y값은 <strong>"해당 점수 이하를 받은 학생들의 비율"</strong>을 뜻합니다.</li>
+          <li style="margin-bottom: 0.5rem;"><strong>기울기의 의미:</strong> 그래프가 <strong>위로 가파르게 솟아오르는 구간</strong>은 그 점수대에 성적이 비슷한 학생들이 <strong>가장 밀집</strong>해 있다는 뜻입니다. (완만한 구간은 학생 수가 적음을 의미합니다.)</li>
+          <li><strong>기준선 읽는 법:</strong>
+            <ul style="margin-top: 0.3rem; padding-left: 1.2rem; color: #475569; list-style-type: circle;">
+              <li><strong style="color:#111827">Median (P50)</strong>: 전체 학생 중 정확히 한가운데(50%) 등수인 학생의 점수로, 체감 평균을 나타냅니다.</li>
+              <li><strong style="color:#9ca3af">P90</strong>: 하위 90% (상위 10%) 성적입니다. 상위권 학생들의 컷오프를 파악할 때 유용합니다.</li>
+              <li><strong style="color:#6b7280">P25, P75</strong>: 각각 하위 25%, 75% 지점으로 학생들의 전반적인 점수가 어느 구간에 몰려있는지(박스권) 파악할 수 있습니다.</li>
+            </ul>
+          </li>
+        </ul>
+      `;
+    body.appendChild(infoDiv);
+
+    const divContainer = document.createElement('div');
+    divContainer.className = 'chart-modal-grid cols-2';
+
+    ['social', 'science'].forEach((subj, i) => {
+      const labels = ['사회탐구', '과학탐구'];
+      const div = document.createElement('div');
+      const h4 = document.createElement('h4');
+      h4.textContent = labels[i];
+      h4.style.textAlign = 'center';
+      div.appendChild(h4);
+
+      const cv = document.createElement('canvas');
+      cv.id = 'modal_exp_cdf_' + subj;
+      cv.width = 300; cv.height = 200;
+      div.appendChild(cv);
+      divContainer.appendChild(div);
+    });
+    body.appendChild(divContainer);
+
+    window.analysisChart.createCdfChart('modal_exp_cdf_social', parsedData, '사회탐구', scoreType);
+    window.analysisChart.createCdfChart('modal_exp_cdf_science', parsedData, '과학탐구', scoreType);
+  });
+}
+
+// ------------------- 페이지 로드 시 자동 초기화 -------------------
+// DOM이 완전히 로드된 후 탭 UI 초기화 실행
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(window.initAnalyzeTabs, 0);
+} else {
+  window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
+}
+
+// ------------------- 과목 조합 통계 유틸 (중복 선언 방지)
+if (typeof comboScoreType === 'undefined') {
+  var comboScoreType = 'auto';
+}
+if (typeof comboSelections === 'undefined') {
+  var comboSelections = { kor: true, math: true, explore: true };
+}

@@ -47,6 +47,7 @@ window.parseFile = function() {
       csvData = lines;
       parsedData = parseCsvRows(lines); // 임시 저장
       displayParsedTable(parsedData);
+      renderUploadSummary(parsedData, file.name);
       showMessage('CSV 파일이 업로드 및 파싱되었습니다.');
       hideLoading();
     };
@@ -69,6 +70,7 @@ window.parseFile = function() {
         csvData = rows;
         parsedData = parseXlsxRows(rows);
         displayParsedTable(parsedData);
+        renderUploadSummary(parsedData, file.name);
         showMessage('XLSX 파일이 업로드 및 파싱되었습니다.');
         hideLoading();
         worker.terminate();
@@ -90,6 +92,7 @@ window.parseFile = function() {
             csvData = rows;
             parsedData = parseXlsxRows(rows);
             displayParsedTable(parsedData);
+            renderUploadSummary(parsedData, file.name);
             showMessage('XLSX 파일이 업로드 및 파싱되었습니다. (폴백)');
           } catch (e) {
             showMessage('XLSX 파싱 중 오류가 발생했습니다. ' + e.message);
@@ -112,6 +115,7 @@ window.parseFile = function() {
           csvData = rows;
           parsedData = parseXlsxRows(rows);
           displayParsedTable(parsedData);
+          renderUploadSummary(parsedData, file.name);
           showMessage('XLSX 파일이 업로드 및 파싱되었습니다. (폴백)');
         } catch (e) {
           showMessage('XLSX 파싱 중 오류가 발생했습니다. ' + e.message);
@@ -226,6 +230,30 @@ function displayParsedTable(data) {
   container.innerHTML = html;
 }
 
+// 업로드 요약 카드 렌더링
+function renderUploadSummary(data, fileName) {
+  const card = document.getElementById('uploadSummaryCard');
+  if (!card) return;
+  const grades = [...new Set(data.map(s => s.학년))].sort();
+  const gradeText = grades.map(g => g + '학년').join(', ');
+  card.classList.remove('hidden');
+  card.innerHTML = `
+    <div class="upload-summary-info">
+      <strong>${fileName}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
+    </div>
+    <button class="upload-next-btn" onclick="showSection('cut')">
+      등급컷 입력하러 가기
+    </button>
+  `;
+  // 업로드 성공 애니메이션
+  const dropBox = document.getElementById('uploadDrop');
+  if (dropBox) {
+    dropBox.classList.add('upload-success');
+    setTimeout(() => dropBox.classList.remove('upload-success'), 2000);
+  }
+  // 스텝 인디케이터 갱신
+  if (typeof updateStepIndicator === 'function') updateStepIndicator();
+}
 
 function displayCompareTable(data) {
   const container = document.getElementById('compareTableContainer');

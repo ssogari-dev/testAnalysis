@@ -2,6 +2,11 @@
 
 // 등급컷 등은 common.js/parse_upload.js에서 전역으로 관리됨
 
+// 성적 확인 테이블 정렬 상태
+let viewSortKey = '';
+let viewSortDesc = true;
+let lastViewStudents = []; // 정렬 재렌더용 캠시
+
 function updateClassDropdown() {
     const parsed = parsedData;
     const grade = document.getElementById('viewGrade').value;
@@ -71,15 +76,34 @@ function updateClassDropdown() {
           <th colspan="3">과학탐구</th>
         </tr>
         <tr>
-          <th>원점수<br>(표점)</th><th>백분위</th><th>등급</th>
-          <th>원점수<br>(표점)</th><th>백분위</th><th>등급</th>
-          <th>원점수</th><th>등급</th>
-          <th>원점수</th><th>등급</th>
-          <th>원점수<br>(표점)</th><th>백분위</th><th>등급</th>
-          <th>원점수<br>(표점)</th><th>백분위</th><th>등급</th>
+          <th class="sortable" onclick="sortViewTable('국어_원')">원점수<br>(표점)${viewSortKey==='국어_원' ? (viewSortDesc?' \u25B2':' \u25BC') : ''}</th><th>백분위</th><th>등급</th>
+          <th class="sortable" onclick="sortViewTable('수학_원')">원점수<br>(표점)${viewSortKey==='수학_원' ? (viewSortDesc?' \u25B2':' \u25BC') : ''}</th><th>백분위</th><th>등급</th>
+          <th class="sortable" onclick="sortViewTable('영어_원')">원점수${viewSortKey==='영어_원' ? (viewSortDesc?' \u25B2':' \u25BC') : ''}</th><th>등급</th>
+          <th class="sortable" onclick="sortViewTable('한국사_원')">원점수${viewSortKey==='한국사_원' ? (viewSortDesc?' \u25B2':' \u25BC') : ''}</th><th>등급</th>
+          <th class="sortable" onclick="sortViewTable('사회_원')">원점수<br>(표점)${viewSortKey==='사회_원' ? (viewSortDesc?' \u25B2':' \u25BC') : ''}</th><th>백분위</th><th>등급</th>
+          <th class="sortable" onclick="sortViewTable('과학_원')">원점수<br>(표점)${viewSortKey==='과학_원' ? (viewSortDesc?' \u25B2':' \u25BC') : ''}</th><th>백분위</th><th>등급</th>
         </tr>
       `;
       html += '</thead><tbody>';
+      // 정렬 적용
+      if (viewSortKey) {
+        students.sort((a, b) => {
+          let va, vb;
+          const getVal = (s, key) => {
+            if (key === '국어_원') return Number(s.국어.원점수) || 0;
+            if (key === '수학_원') return Number(s.수학.원점수) || 0;
+            if (key === '영어_원') return Number(s.영어.원점수) || 0;
+            if (key === '한국사_원') return Number(s.한국사.원점수) || 0;
+            if (key === '사회_원') return Number(s.사회탐구.원점수) || 0;
+            if (key === '과학_원') return Number(s.과학탐구.원점수) || 0;
+            return 0;
+          };
+          va = getVal(a, viewSortKey);
+          vb = getVal(b, viewSortKey);
+          return viewSortDesc ? vb - va : va - vb;
+        });
+      }
+      lastViewStudents = students;
       students.forEach(s => {
         // 과목별로 등급컷 기준 분기
         const getGrade = (score, cuts) => {
@@ -124,4 +148,15 @@ function updateClassDropdown() {
       document.getElementById('viewContent').innerHTML = html;
       hideLoading();
     }, 100);
+  }
+
+  // 성적 확인 테이블 정렬 함수
+  function sortViewTable(key) {
+    if (viewSortKey === key) {
+      viewSortDesc = !viewSortDesc;
+    } else {
+      viewSortKey = key;
+      viewSortDesc = true;
+    }
+    showStudentData();
   }

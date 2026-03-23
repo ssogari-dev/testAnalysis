@@ -12,6 +12,7 @@ function showSection(id) {
     if (id === 'cut' && typeof initCutTable === 'function') initCutTable();
     if (id === 'cut' && typeof fetchEBSiCuts === 'function') fetchEBSiCuts();
     if (id === 'view' && typeof updateClassDropdown === 'function') updateClassDropdown();
+    updateStepIndicator();
   }
 
   function checkAccessPermission(section) {
@@ -32,7 +33,7 @@ function showSection(id) {
   }
   
   function showMessage(message) {
-    document.getElementById('messageContent').innerText = message;
+    document.getElementById('messageContent').innerHTML = message;
     document.getElementById('messagePopup').style.display = 'block';
     document.getElementById('overlay').style.display = 'block';
   }
@@ -52,26 +53,51 @@ function showSection(id) {
     const drop = document.getElementById('uploadDrop');
     const input = document.getElementById('csvFile');
     if (!drop || !input) return;
-    function setLastUploadInfo(name){
+    function setLastUploadInfo(name, isReadyToParse = false){
       const el = document.getElementById('lastUploadInfo');
-      if (el) el.textContent = name ? `최근 파일: ${name}` : '';
+      const box = document.getElementById('uploadDrop');
+      if (el) {
+        if (name && isReadyToParse) {
+           el.innerHTML = `<strong style="color:var(--primary-color); font-size:1.05rem;">✔ 선택된 파일:</strong> <span style="font-weight:600; font-size:1.05rem; color:#111827;">${name}</span>`;
+        } else if (name && !isReadyToParse) {
+           el.innerHTML = `<span style="color:var(--subtle-text-color);">최근 생성 기록: ${name}</span>`;
+        } else {
+           el.innerHTML = '';
+        }
+      }
+      if (box) {
+         if (name && isReadyToParse) {
+           box.style.borderColor = 'var(--primary-color)';
+           box.style.backgroundColor = '#f8fafc';
+           box.style.borderStyle = 'solid';
+           box.style.borderWidth = '2px';
+         } else {
+           box.style.borderColor = '';
+           box.style.backgroundColor = '';
+           box.style.borderStyle = '';
+           box.style.borderWidth = '';
+         }
+      }
     }
+    
+    // 이전에 작업했던 기록은 파싱 대기 상태가 아님 (isReadyToParse = false)
     try {
       const last = localStorage.getItem('lastUploadName');
-      if (last) setLastUploadInfo(last);
+      if (last) setLastUploadInfo(last, false);
     } catch(e){}
+    
     ;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); e.stopPropagation(); drop.classList.add('dragover');}));
     ;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); e.stopPropagation(); drop.classList.remove('dragover');}));
     drop.addEventListener('drop', e=>{
       const files = e.dataTransfer?.files;
       if (files && files.length){
         input.files = files;
-        try { localStorage.setItem('lastUploadName', files[0].name); setLastUploadInfo(files[0].name);} catch(e){}
+        try { localStorage.setItem('lastUploadName', files[0].name); setLastUploadInfo(files[0].name, true);} catch(e){}
       }
     });
     input.addEventListener('change', e=>{
       const f = e.target.files?.[0];
-      if (f){ try { localStorage.setItem('lastUploadName', f.name); setLastUploadInfo(f.name);} catch(e){} }
+      if (f){ try { localStorage.setItem('lastUploadName', f.name); setLastUploadInfo(f.name, true);} catch(e){} }
     });
   })();
   
@@ -154,6 +180,72 @@ function showSection(id) {
     return html;
   }
 
+  // ------------------- 스텝 인디케이터 갱신 -------------------
+  function updateStepIndicator() {
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    if (!step1) return;
+
+    const hasFile = parsedData && parsedData.length > 0;
+    const hasCuts = gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
+
+    // 초기화
+    [step1, step2, step3].forEach(s => { s.classList.remove('step-done', 'step-active'); });
+
+    if (hasFile && hasCuts) {
+      // 모두 완료
+      step1.classList.add('step-done');
+      step2.classList.add('step-done');
+      step3.classList.add('step-active');
+    } else if (hasFile) {
+      // 파일만 완료
+      step1.classList.add('step-done');
+      step2.classList.add('step-active');
+    } else {
+      // 아직 시작 전
+      step1.classList.add('step-active');
+    }
+
+    // 빈 상태 가이드 표시/숨기기
+    const cutGuide = document.getElementById('cutEmptyGuide');
+    const viewGuide = document.getElementById('viewEmptyGuide');
+    const analyzeGuide = document.getElementById('analyzeEmptyGuide');
+    if (cutGuide) cutGuide.classList.toggle('hidden', hasFile);
+    if (viewGuide) viewGuide.classList.toggle('hidden', hasFile && hasCuts);
+    if (analyzeGuide) analyzeGuide.classList.toggle('hidden', hasFile && hasCuts);
+  }
+
+  // 초기 호출
+  document.addEventListener('DOMContentLoaded', updateStepIndicator);
+
+  // ------------------- 차트 모달 -------------------
+  function openChartModal(title, renderFn) {
+    const modal = document.getElementById('chartModal');
+    const titleEl = document.getElementById('chartModalTitle');
+    const body = document.getElementById('chartModalBody');
+    if (!modal) return;
+    titleEl.textContent = title;
+    body.innerHTML = '';
+    modal.classList.add('active');
+    // renderFn은 body 요소 안에 캔버스를 만들고 차트를 그리는 콜백
+    setTimeout(() => renderFn(body), 50);
+  }
+
+  function closeChartModal() {
+    const modal = document.getElementById('chartModal');
+    const body = document.getElementById('chartModalBody');
+    if (!modal) return;
+    modal.classList.remove('active');
+    // 차트 해제
+    if (body) {
+      body.querySelectorAll('canvas').forEach(cv => {
+        if (window.analysisChart) window.analysisChart.destroyChart(cv.id);
+      });
+      body.innerHTML = '';
+    }
+  }
+
 // ------------------- 스마트 복사 이벤트 핸들러 -------------------
 /**
  * 사용자가 표 내부에서 복사할 때 .no-copy 클래스를 가진 열을 제외하고 복사하는 함수
@@ -202,7 +294,18 @@ function handleTableCopy(event) {
   });
 
   if (clipboardString) {
-    navigator.clipboard.writeText(clipboardString.trim()).catch(err => {
+    navigator.clipboard.writeText(clipboardString.trim()).then(() => {
+      // 복사 성공 피드백: 가장 가까운 복사 버튼의 텍스트 임시 변경
+      const copyBtns = document.querySelectorAll('.copy-btn');
+      copyBtns.forEach(btn => {
+        if (btn.textContent.includes('복사') && !btn.classList.contains('copied')) {
+          const original = btn.textContent;
+          btn.textContent = '복사됨!';
+          btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+        }
+      });
+    }).catch(err => {
       console.error('클립보드 쓰기 실패: ', err);
       showMessage('데이터 복사에 실패했습니다.');
     });
