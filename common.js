@@ -37,12 +37,17 @@ function showSection(id) {
   function checkAccessPermission(section) {
     if (section === 'view' || section === 'analyze') {
       if (!parsedData || parsedData.length === 0) return false;
-      const hasGradeCuts = gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
-      if (!hasGradeCuts) return false;
+      if (!hasGradingBasis()) return false;
     }
     return true;
   }
   
+  // 등급을 매길 근거가 있는지: 등급컷을 불러왔거나, 공식 등급이 들어 있는 [영역별 기준] 성적표를 올린 경우
+  function hasGradingBasis() {
+    const hasCuts = gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
+    return hasCuts || window.uploadedReportFormat === 'area';
+  }
+
   function showMessage(message) {
     document.getElementById('messageContent').innerHTML = message;
     document.getElementById('messagePopup').style.display = 'block';
@@ -276,7 +281,7 @@ function showSection(id) {
     if (!step1) return;
 
     const hasFile = parsedData && parsedData.length > 0;
-    const hasCuts = gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
+    const hasCuts = hasGradingBasis();
 
     // 초기화
     [step1, step2, step3].forEach(s => { s.classList.remove('step-done', 'step-active'); });

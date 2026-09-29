@@ -1,4 +1,5 @@
 # 실제 학생 성적 파일 — 절대 저장소/사이트에 올리지 않는다
 real_compare_dat/
-*.xls
+
 *.csv
+*.xls

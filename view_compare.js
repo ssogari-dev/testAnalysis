@@ -71,10 +71,6 @@ function updateClassDropdown() {
       if (typeof estimateStudentsRawScores === 'function') {
         try { await estimateStudentsRawScores(students); } catch (e) { /* 추정 실패는 무시하고 빈 값 유지 */ }
       }
-      // 확장자에 따라 등급컷 분기
-      // XLSX 기본 표준점수, CSV는 토글로 표준점수 허용
-      const useStdKorMath = (window.uploadedFileExt === 'xlsx') || (window.uploadedFileExt === 'csv' && window.csvTargetUseStdKorMath);
-      const useStdExplore = (window.uploadedFileExt === 'xlsx') || (window.uploadedFileExt === 'csv' && window.csvTargetUseStdExplore);
       let html = '<table id="viewResultTable"><thead>';
       html += `
         <tr>
@@ -123,25 +119,18 @@ function updateClassDropdown() {
       const rawCell = (rec) => (rec.원점수 && rec.원점수 !== '') ? `${rec.원점수}(${rec.표준점수})` : `(${rec.표준점수 || '-'})`;
       const pctCell = (rec) => (rec.백분위 && rec.백분위 !== '') ? rec.백분위 : '-';
       students.forEach(s => {
-        // 등급컷 선택
-        const korCuts = useStdKorMath ? gradeCuts.target.std.korean : gradeCuts.target.raw.korean;
-        const mathCuts = useStdKorMath ? gradeCuts.target.std.math : gradeCuts.target.raw.math;
-        const socCuts = useStdExplore ? gradeCuts.target.std.social : gradeCuts.target.raw.social;
-        const sciCuts = useStdExplore ? gradeCuts.target.std.science : gradeCuts.target.raw.science;
-        const engCuts = gradeCuts.target.raw.english;
-        const hisCuts = gradeCuts.target.raw.history;
         html += '<tr>';
         html += `<td class="no-copy">${s.반}</td>`;
         html += `<td class="no-copy">${s.번호}</td><td class="no-copy">${escapeHtml(s.이름)}</td>`;
-        // 기록 등급 사용 토글이 켜져 있고 CSV인 경우, 등급 칸에는 기록된 등급 표시
-        const useRecorded = (window.uploadedFileExt === 'csv' && window.csvTargetUseRecorded === true);
-        // resolveStudentGrade: 점수가 없어도 기록된 등급(예: 영어/한국사 "N등급" 텍스트)이 있으면 그걸 사용한다
-        const korGradeDisp = useRecorded ? (s.국어?.등급 || '-') : (resolveStudentGrade(s.국어, useStdKorMath ? '표준점수' : '원점수', korCuts) ?? '-');
-        const mathGradeDisp = useRecorded ? (s.수학?.등급 || '-') : (resolveStudentGrade(s.수학, useStdKorMath ? '표준점수' : '원점수', mathCuts) ?? '-');
-        const engGradeDisp = useRecorded ? (s.영어?.등급 || '-') : (resolveStudentGrade(s.영어, '원점수', engCuts) ?? '-');
-        const hisGradeDisp = useRecorded ? (s.한국사?.등급 || '-') : (resolveStudentGrade(s.한국사, '원점수', hisCuts) ?? '-');
-        const socGradeDisp = useRecorded ? (s.사회탐구?.등급 || '-') : (resolveStudentGrade(s.사회탐구, useStdExplore ? '표준점수' : '원점수', socCuts) ?? '-');
-        const sciGradeDisp = useRecorded ? (s.과학탐구?.등급 || '-') : (resolveStudentGrade(s.과학탐구, useStdExplore ? '표준점수' : '원점수', sciCuts) ?? '-');
+        // 등급은 성적 분석·내보내기와 같은 함수(studentGradeFor)로 매긴다.
+        // (CSV '기록 등급 사용' 옵션, [영역별 기준] 성적표의 공식 등급, 점수 없이 등급만 있는 영어/한국사 모두 처리)
+        const g = subj => studentGradeFor(s, subj, 'target') ?? '-';
+        const korGradeDisp = g('국어');
+        const mathGradeDisp = g('수학');
+        const engGradeDisp = g('영어');
+        const hisGradeDisp = g('한국사');
+        const socGradeDisp = g('사회탐구');
+        const sciGradeDisp = g('과학탐구');
 
         html += `<td>${rawCell(s.국어)}</td><td>${pctCell(s.국어)}</td><td>${korGradeDisp}</td>`;
         html += `<td>${rawCell(s.수학)}</td><td>${pctCell(s.수학)}</td><td>${mathGradeDisp}</td>`;

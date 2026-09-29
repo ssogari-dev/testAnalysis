@@ -1944,14 +1944,15 @@ function gradingOptionsFor(side) {
   if (side === 'compare') {
     return {
       ext: window.compareUploadedFileExt,
-      useRecorded: window.csvCompareUseRecorded === true,
+      // [영역별 기준] 성적표는 공식 등급이 들어 있으므로 등급컷으로 다시 매기지 않고 그대로 쓴다
+      useRecorded: (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) || window.compareReportFormat === 'area',
       stdKorMath: !!window.csvCompareUseStdKorMath,
       stdExplore: !!window.csvCompareUseStdExplore
     };
   }
   return {
     ext: window.uploadedFileExt,
-    useRecorded: window.csvTargetUseRecorded === true,
+    useRecorded: (window.uploadedFileExt === 'csv' && window.csvTargetUseRecorded === true) || window.uploadedReportFormat === 'area',
     stdKorMath: !!window.csvTargetUseStdKorMath,
     stdExplore: !!window.csvTargetUseStdExplore
   };
@@ -1995,7 +1996,7 @@ function cutsForSide(subject, side) {
 function studentGradeFor(s, subject, side) {
   const rec = s?.[subject];
   const o = gradingOptionsFor(side);
-  if (o.ext === 'csv' && o.useRecorded) {
+  if (o.useRecorded) {
     const g = Number(rec?.등급);
     return (!isNaN(g) && g >= 1 && g <= 9) ? g : null;
   }
@@ -2020,7 +2021,7 @@ function studentExploreEntries(s) {
 function exploreEntryGrade(e, side) {
   const cat = e.분류 === 'science' ? '과학탐구' : '사회탐구';
   const o = gradingOptionsFor(side);
-  if (!(o.ext === 'csv' && o.useRecorded)) {
+  if (!(o.useRecorded)) {
     const [rawCuts, stdCuts] = cutsForSide(cat, side);
     const { cuts, scoreField } = pickGradingCuts(cat, rawCuts, stdCuts, side);
     const g = resolveStudentGrade(e, scoreField, cuts);
@@ -2033,7 +2034,7 @@ function exploreEntryGrade(e, side) {
 function getGradeDistByCut(parsed, subject, rawCuts, stdCuts, side) {
   const o = gradingOptionsFor(side);
   // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
-  if (o.ext === 'csv' && o.useRecorded) return getGradeDistByRecordedGrade(parsed, subject);
+  if (o.useRecorded) return getGradeDistByRecordedGrade(parsed, subject);
   const { cuts, scoreField } = pickGradingCuts(subject, rawCuts, stdCuts, side);
 
   let dist = Array(9).fill(0); // 1~9등급 인원수 배열
@@ -2086,7 +2087,7 @@ function getGradeDistByRecordedGrade(parsed, subject) {
  */
 function get12GradeByCut(parsed, subject, rawCuts, stdCuts, side) {
   const o = gradingOptionsFor(side);
-  if (o.ext === 'csv' && o.useRecorded) return get12GradeByRecordedGrade(parsed, subject);
+  if (o.useRecorded) return get12GradeByRecordedGrade(parsed, subject);
   const { dist, total } = getGradeDistByCut(parsed, subject, rawCuts, stdCuts, side);
   const cnt = dist[0] + dist[1]; // 1등급 + 2등급 인원수
   const ratio = total ? (cnt / total * 100).toFixed(2) : '0';
@@ -2298,9 +2299,9 @@ window.analyzeAll = async function () {
     html += `<table id="stdCutTable"><thead>
       <tr><th class="no-copy">구분</th><th>국어영역</th><th>수학영역</th></tr>
     </thead><tbody>
-      <tr><td class="no-copy">1등급</td><td>${gradeCuts.target.std.korean[0]}</td><td>${gradeCuts.target.std.math[0]}</td></tr>
-      <tr><td class="no-copy">2등급</td><td>${gradeCuts.target.std.korean[1]}</td><td>${gradeCuts.target.std.math[1]}</td></tr>
-      <tr><td class="no-copy">3등급</td><td>${gradeCuts.target.std.korean[2]}</td><td>${gradeCuts.target.std.math[2]}</td></tr>
+      <tr><td class="no-copy">1등급</td><td>${gradeCuts.target.std.korean[0] ?? '-'}</td><td>${gradeCuts.target.std.math[0] ?? '-'}</td></tr>
+      <tr><td class="no-copy">2등급</td><td>${gradeCuts.target.std.korean[1] ?? '-'}</td><td>${gradeCuts.target.std.math[1] ?? '-'}</td></tr>
+      <tr><td class="no-copy">3등급</td><td>${gradeCuts.target.std.korean[2] ?? '-'}</td><td>${gradeCuts.target.std.math[2] ?? '-'}</td></tr>
     </tbody></table>`;
 
     // 3~5. 통계 표들을 위한 컨테이너
@@ -2476,7 +2477,7 @@ window.handleCompareFile = function (e) {
   const ext = file.name.split('.').pop().toLowerCase();
 
   if (ext === 'csv' || ext === 'txt') {
-    try { window.compareUploadedFileExt = ext; } catch (e) { }
+    try { window.compareUploadedFileExt = ext; window.compareReportFormat = ''; window.compareReportLabel = 'CSV 파일'; } catch (e) { }
     readCsvFileText(file).then(async function (text) {
       try {
         const lines = parseCsvText(text);
@@ -2508,7 +2509,7 @@ window.handleCompareFile = function (e) {
 
   // xlsx/xls: 실제 바이너리 스프레드시트인지, EUC-KR HTML 기반 성적표(예: 교육청 [표준점수 기준] 리포트)인지
   // 파일 앞부분 바이트로 판별한다.
-  try { window.compareUploadedFileExt = 'xlsx'; } catch (e) { }
+  try { window.compareUploadedFileExt = 'xlsx'; window.compareReportFormat = ''; window.compareReportLabel = '엑셀 파일'; } catch (e) { }
   const headReader = new FileReader();
   headReader.onload = function (headEv) {
     const head = new Uint8Array(headEv.target.result);
@@ -2543,16 +2544,19 @@ window.handleCompareFile = function (e) {
       reader.onload = async function (ev) {
         try {
           const text = ev.target.result;
-          const rows = (typeof parseHtmlTableToRows === 'function') ? parseHtmlTableToRows(text) : [];
-          const rowsData = (typeof parseStdReportRows === 'function') ? parseStdReportRows(rows) : [];
-          if (!rowsData.length) throw new Error('표에서 학생 데이터를 찾지 못했습니다. 파일 형식을 확인해주세요.');
+          // [표준점수 기준] / [영역별 기준] 성적표를 머리글 지문으로 구분해서 읽는다 (모르는 형식이면 오류)
+          const { format, label, data: rowsData } = parseHtmlReport(text);
           compareParsedData = rowsData;
+          window.compareReportFormat = format;
+          window.compareReportLabel = label;
           if (window.__lastEbsiCompareExam && typeof estimateStudentsRawScores === 'function') {
             try { await estimateStudentsRawScores(compareParsedData, window.__lastEbsiCompareExam); } catch (e) { /* 추정 실패는 무시 */ }
           }
           document.getElementById('showCompareBtn').disabled = false;
           updateCompareGradeFilters();
-          showToast(`비교 파일이 업로드되었습니다: ${compareFileName} (원점수 없이 표준점수 기준으로 비교)`);
+          showToast(format === 'area'
+            ? `비교 파일이 업로드되었습니다: ${compareFileName} (영역별 기준 — 공식 백분위·등급 사용)`
+            : `비교 파일이 업로드되었습니다: ${compareFileName} (원점수 없이 표준점수 기준으로 비교)`);
         } catch (err) {
           console.error(err);
           compareParsedData = [];
@@ -2588,7 +2592,7 @@ async function renderCompareResult() {
     } catch (e) { /* 추정 실패는 무시 */ }
   }
 
-  document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${escapeHtml(compareFileName)}</div>`;
+  document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${escapeHtml(compareFileName)} <span class="status-text">(인식한 형식: ${escapeHtml(window.compareReportLabel || '-')})</span></div>`;
 
   // 각종 비교 테이블들 렌더링
   renderCompareGradeTable(); // 등급컷 비교 테이블

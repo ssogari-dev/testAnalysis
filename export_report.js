@@ -369,7 +369,8 @@ const DAEGYO_SUBJECT_NAMES = [
   '국어', '언어와 매체', '화법과 작문', '수학', '확률과 통계', '미적분', '기하',
   '한국 지리', '윤리와 사상', '생활과 윤리', '사회·문화', '경제', '세계사', '동아시아사', '세계 지리', '사회', '정치와 법',
   '물리학Ⅰ', '물리학Ⅱ', '화학Ⅰ', '화학Ⅱ', '생명 과학Ⅰ', '생명 과학Ⅱ', '지구 과학Ⅰ', '지구 과학Ⅱ', '과학',
-  '농업 기초 기술', '공업 일반', '상업 경제', '수산·해운 산업 기초', '인간 발달', '성공적인 직업생활'
+  '농업 기초 기술', '공업 일반', '상업 경제', '수산·해운 산업 기초', '인간 발달', '성공적인 직업생활',
+  '독일어Ⅰ', '프랑스어Ⅰ', '스페인어Ⅰ', '중국어Ⅰ', '일본어Ⅰ', '러시아어Ⅰ', '아랍어Ⅰ', '베트남어Ⅰ', '한문Ⅰ'
 ];
 function daegyoSubjectName(name) {
   if (!name) return '';
@@ -389,8 +390,8 @@ function buildDaegyoRows(schoolYear) {
     const hasScore = rec => !!rec && ['원점수', '표준점수'].some(f => String(rec[f] || '').trim() !== '');
     return {
       A: numOrBlank(schoolYear), B: numOrBlank(s.학년), C: numOrBlank(s.반), D: numOrBlank(s.번호), E: s.이름 || '',
-      // 한국사 (원점수는 자료에 없어 비워둔다)
-      F: '', G: subjectGrade(s, '한국사'),
+      // 한국사 (원점수는 [영역별 기준] 성적표·CSV처럼 파일에 있을 때만 들어간다)
+      F: numOrBlank(s.한국사?.원점수), G: subjectGrade(s, '한국사'),
       // 국어
       H: hasScore(s.국어) ? daegyoSubjectName(s.국어.과목 || '국어') : '',
       I: numOrBlank(s.국어?.원점수), J: numOrBlank(s.국어?.표준점수), K: numOrBlank(s.국어?.백분위),
@@ -399,13 +400,15 @@ function buildDaegyoRows(schoolYear) {
       M: hasScore(s.수학) ? daegyoSubjectName(s.수학.과목 || '수학') : '',
       N: numOrBlank(s.수학?.원점수), O: numOrBlank(s.수학?.표준점수), P: numOrBlank(s.수학?.백분위),
       Q: hasScore(s.수학) ? subjectGrade(s, '수학') : '',
-      // 영어 (원점수는 자료에 없어 비워둔다)
-      R: '', S: subjectGrade(s, '영어'),
+      // 영어 (원점수는 파일에 있을 때만)
+      R: numOrBlank(s.영어?.원점수), S: subjectGrade(s, '영어'),
       // 탐구1 / 탐구2
       T: daegyoSubjectName(e1.과목), U: numOrBlank(e1.원점수), V: numOrBlank(e1.표준점수), W: numOrBlank(e1.백분위), X: numOrBlank(e1.등급),
       Y: daegyoSubjectName(e2.과목), Z: numOrBlank(e2.원점수), AA: numOrBlank(e2.표준점수), AB: numOrBlank(e2.백분위), AC: numOrBlank(e2.등급),
-      // 제2외국어는 자료에 없다
-      AD: '', AE: '', AF: ''
+      // 제2외국어 ([영역별 기준] 성적표에만 있음)
+      AD: s.제2외국어 ? daegyoSubjectName(s.제2외국어.과목) : '',
+      AE: s.제2외국어 ? numOrBlank(s.제2외국어.원점수) : '',
+      AF: s.제2외국어 ? numOrBlank(s.제2외국어.등급) : ''
     };
   });
 }
@@ -533,7 +536,9 @@ function openExportDialog(kind) {
       <h3>대교협 분석자료 내보내기 (XLSX)</h3>
       <label class="export-field">학년도<input id="expSchoolYear" type="number" min="2000" max="2100" value="${defaultYear}"></label>
       <p class="export-hint">서식 안내에 따라 1·2·3학년 모두 같은 학년도(올해 입시 학년도)로 입력합니다.</p>
-      <p class="export-hint">'저장' 시트에 학생 ${parsedData.length}명의 자료를 채웁니다. 영어·한국사 원점수와 제2외국어는 자료에 없어 비워둡니다.</p>
+      <p class="export-hint">'저장' 시트에 학생 ${parsedData.length}명의 자료를 채웁니다. ${window.uploadedReportFormat === 'area'
+        ? '영역별 기준 성적표라 원점수·백분위·등급과 제2외국어까지 공식 값으로 채웁니다.'
+        : '영어·한국사 원점수와 제2외국어는 파일에 없으면 비워둡니다.'}</p>
       <div class="btn-row export-actions">
         <button type="button" class="action-btn-secondary" onclick="closeExportDialog()">취소</button>
         <button type="button" class="action-btn" id="expRun">내보내기</button>

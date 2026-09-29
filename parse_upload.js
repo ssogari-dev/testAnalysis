@@ -33,6 +33,8 @@ window.parseFile = function() {
   }
   const ext = file.name.split('.').pop().toLowerCase();
   window.uploadedIsStdReport = false; // 표준점수 성적표면 해당 파서에서 다시 true로 바꾼다
+  window.uploadedReportFormat = '';   // 교육청 성적표(HTML)면 'std' | 'area'
+  window.uploadedReportLabel = (ext === 'csv' || ext === 'txt') ? 'CSV 파일' : '엑셀 파일';
   // 업로드 확장자 전역 저장 (.xls는 xlsx와 동일한 파싱 로직을 사용하므로 내부적으로 'xlsx'로 통일)
   try { window.uploadedFileExt = (ext === 'xls') ? 'xlsx' : ext; } catch(e) {}
   if (ext === 'csv' || ext === 'txt') {
@@ -156,16 +158,19 @@ function parseHtmlReportFile(file) {
   reader.onload = function (e) {
     try {
       const text = e.target.result;
-      const rows = parseHtmlTableToRows(text);
-      const rowsData = parseStdReportRows(rows);
-      if (!rowsData.length) throw new Error('표에서 학생 데이터를 찾지 못했습니다. 파일 형식을 확인해주세요.');
+      // 머리글 지문으로 형식을 인식한다 (파일명은 보지 않음). 모르는 형식이면 여기서 오류로 멈춘다
+      const { format, label, data: rowsData } = parseHtmlReport(text);
       window.uploadedFileExt = 'xlsx';
-      window.uploadedIsStdReport = true; // 원점수 없이 표준점수/등급만 제공되는 리포트임을 표시
-      csvData = rows;
+      window.uploadedReportFormat = format;
+      window.uploadedReportLabel = label;
+      window.uploadedIsStdReport = (format === 'std'); // 원점수 없이 표준점수/등급만 제공되는 리포트
+      csvData = [];
       parsedData = rowsData;
       displayParsedTable(parsedData);
       renderUploadSummary(parsedData, file.name);
-      showToast('표준점수 기준 성적표 파일이 업로드 및 파싱되었습니다. (원점수 없이 표준점수 기준으로 분석)');
+      showToast(format === 'area'
+        ? '영역별 기준 성적표 파일이 업로드 및 파싱되었습니다. (원점수·백분위·등급 모두 공식 값 사용)'
+        : '표준점수 기준 성적표 파일이 업로드 및 파싱되었습니다. (원점수 없이 표준점수 기준으로 분석)');
     } catch (err) {
       showMessage('성적표 파일 파싱 중 오류가 발생했습니다. ' + err.message);
     } finally {
@@ -180,18 +185,173 @@ function parseHtmlReportFile(file) {
   reader.readAsText(file, 'euc-kr');
 }
 
-// HTML 문자열에서 <table> 하나를 찾아 2차원 배열(행x셀 텍스트)로 변환
-function parseHtmlTableToRows(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+// ------------------- 교육청 성적표(HTML 표) 형식 인식 -------------------
+// 학교 성적처리 프로그램이 .xls 확장자로 내려주는 파일은 실제로는 HTML 표다.
+// 파일명은 보지 않고 "머리글 지문"으로만 형식을 구분한다:
+//  1) 병합 칸(colspan/rowspan)을 펼쳐 각 열의 머리글 경로를 만든다 (예: '국어/백분위', '국어/석차/전국')
+//  2) 첫 줄 머리글 묶음이 등록된 형식 중 "정확히 하나"와 같아야 한다 (아니면 추측하지 않고 멈춘다)
+//  3) 값은 열 번호가 아니라 머리글 경로로 찾는다 → 열 순서가 바뀌어도 값이 밀리지 않는다
+//  4) 읽은 값이 상식적인 범위인지 검사한다 (등급 1~9, 백분위 0~100 …) → 열이 어긋나면 업로드를 멈춘다
+const REPORT_FORMATS = [
+  {
+    id: 'std',
+    label: '수능성적표 [표준점수 기준]',
+    groups: ['순위', '학급', '번호', '이름', '총점(국수탐)', '국어', '수학', '영어', '한국사', '탐구1선택', '탐구2선택'],
+    cols: {
+      학급: '학급', 번호: '번호', 이름: '이름',
+      국어과목: '국어/과목', 국어표준: '국어/점수',
+      수학과목: '수학/과목', 수학표준: '수학/점수',
+      영어등급: '영어/등급', 한국사등급: '한국사/등급',
+      탐1과목: '탐구1선택/과목', 탐1표준: '탐구1선택/점수',
+      탐2과목: '탐구2선택/과목', 탐2표준: '탐구2선택/점수'
+    }
+  },
+  {
+    id: 'area',
+    label: '수능성적표 [영역별 기준]',
+    groups: ['순위', '학급', '번호', '이름', '국어', '수학', '영어', '한국사', '탐구1선택', '탐구2선택', '제2외국어'],
+    cols: {
+      학급: '학급', 번호: '번호', 이름: '이름',
+      국어과목: '국어/과목', 국어원점수: '국어/원점수', 국어표준: '국어/표준', 국어백분위: '국어/백분위', 국어등급: '국어/등급',
+      수학과목: '수학/과목', 수학원점수: '수학/원점수', 수학표준: '수학/표준', 수학백분위: '수학/백분위', 수학등급: '수학/등급',
+      영어원점수: '영어/원점수', 영어등급: '영어/등급',
+      한국사원점수: '한국사/원점수', 한국사등급: '한국사/등급',
+      탐1과목: '탐구1선택/과목', 탐1원점수: '탐구1선택/원점수', 탐1표준: '탐구1선택/표준', 탐1백분위: '탐구1선택/백분위', 탐1등급: '탐구1선택/등급',
+      탐2과목: '탐구2선택/과목', 탐2원점수: '탐구2선택/원점수', 탐2표준: '탐구2선택/표준', 탐2백분위: '탐구2선택/백분위', 탐2등급: '탐구2선택/등급',
+      제2외과목: '제2외국어/과목', 제2외원점수: '제2외국어/원점수', 제2외등급: '제2외국어/등급'
+    }
+  }
+];
+
+// HTML 문자열 → 병합 칸을 펼친 격자 + 줄마다 머리글(th)만으로 된 줄인지 여부
+function parseHtmlTableToGrid(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
   const table = doc.querySelector('table');
   if (!table) throw new Error('표(<table>)를 찾을 수 없습니다.');
-  const rows = [];
-  table.querySelectorAll('tr').forEach(tr => {
-    const cells = Array.from(tr.querySelectorAll('td,th')).map(td => (td.textContent || '').trim());
-    rows.push(cells);
+  const grid = [];
+  const isHeader = [];
+  Array.from(table.rows).forEach((tr, r) => {
+    grid[r] = grid[r] || [];
+    let c = 0, allTh = true, any = false;
+    Array.from(tr.cells).forEach(cell => {
+      while (grid[r][c] !== undefined) c++;
+      const cs = Math.max(1, cell.colSpan || 1);
+      const rs = Math.max(1, cell.rowSpan || 1);
+      const text = (cell.textContent || '').trim();
+      for (let dr = 0; dr < rs; dr++) {
+        grid[r + dr] = grid[r + dr] || [];
+        for (let dc = 0; dc < cs; dc++) grid[r + dr][c + dc] = text;
+      }
+      if (cell.tagName !== 'TH') allTh = false;
+      any = true;
+      c += cs;
+    });
+    isHeader[r] = any && allTh;
   });
-  return rows;
+  return { grid, isHeader };
+}
+
+// 격자에서 형식을 인식하고 학생 데이터로 바꾼다 (DOM을 쓰지 않는 부분 — 테스트에서도 그대로 사용)
+function recognizeReportGrid(grid, isHeader) {
+  const norm = v => String(v ?? '').replace(/\s+/g, '');
+  // 머리글 줄 수: 앞쪽의 th 줄. th가 없는 파일이면 학급(3자리 숫자)이 처음 나오는 줄 전까지
+  let headerCount = 0;
+  while (headerCount < grid.length && isHeader && isHeader[headerCount]) headerCount++;
+  if (!headerCount) {
+    headerCount = grid.findIndex(row => (row || []).slice(0, 4).some(v => /^\d{3}$/.test(String(v).trim())));
+    if (headerCount <= 0) throw new Error('표의 머리글을 찾지 못했습니다. 교육청 성적표 파일이 맞는지 확인해주세요.');
+  }
+  const width = Math.max(...grid.slice(0, headerCount).map(r => (r || []).length));
+  // 열마다 머리글 경로 (세로로 같은 글자가 반복되면(병합) 한 번만)
+  const paths = [];
+  for (let c = 0; c < width; c++) {
+    const parts = [];
+    for (let r = 0; r < headerCount; r++) {
+      const t = norm(grid[r]?.[c]);
+      if (t && parts[parts.length - 1] !== t) parts.push(t);
+    }
+    paths.push(parts.join('/'));
+  }
+  const groups = [...new Set(paths.map(p => p.split('/')[0]).filter(Boolean))];
+
+  // 첫 줄 묶음이 정확히 일치하는 형식 찾기 (순서는 달라도 되지만, 더 많거나 적으면 안 된다)
+  const matches = REPORT_FORMATS.filter(f =>
+    f.groups.length === groups.length && f.groups.every(g => groups.includes(norm(g))));
+  if (matches.length !== 1) {
+    throw new Error(
+      '지원하지 않는 성적표 형식입니다.\n' +
+      `찾은 머리글: ${escapeHtml(groups.join(', ')) || '(없음)'}\n` +
+      `지원하는 형식: ${REPORT_FORMATS.map(f => f.label).join(', ')}`);
+  }
+  const fmt = matches[0];
+
+  // 필요한 열을 머리글 경로로 찾는다
+  const idx = {};
+  const missing = [];
+  Object.entries(fmt.cols).forEach(([key, path]) => {
+    const i = paths.indexOf(norm(path));
+    if (i < 0) missing.push(path); else idx[key] = i;
+  });
+  if (missing.length) {
+    throw new Error(`${fmt.label} 형식으로 보이지만 필요한 열을 찾지 못했습니다: ${missing.join(', ')}\n(교육청 파일 형식이 바뀌었을 수 있습니다)`);
+  }
+
+  // 학생 줄만 추린다 (학급이 숫자이고 이름이 있는 줄 — 합계·빈 줄 제외)
+  const dataRows = grid.slice(headerCount).filter(row =>
+    row && /^\d{1,3}(\.0+)?$/.test(String(row[idx.학급] ?? '').trim()) && String(row[idx.이름] ?? '').trim());
+  const data = fmt.id === 'area' ? parseAreaReportRows(dataRows, idx) : parseStdReportRows(dataRows, idx);
+  if (!data.length) throw new Error(`${fmt.label} 형식이지만 학생 데이터를 찾지 못했습니다.`);
+
+  const problems = validateReportData(fmt.id, data);
+  if (problems.length) {
+    throw new Error(`${fmt.label} 형식으로 읽었지만 값이 이상합니다. 열이 어긋났을 수 있어 업로드를 멈췄습니다.\n- ` + problems.slice(0, 4).join('\n- '));
+  }
+  return { format: fmt.id, label: fmt.label, data };
+}
+
+// HTML 성적표 파일 내용 → { format, label, data } (대상·비교 업로드 공용)
+function parseHtmlReport(html) {
+  const { grid, isHeader } = parseHtmlTableToGrid(html);
+  return recognizeReportGrid(grid, isHeader);
+}
+
+// 읽은 값이 상식적인 범위인지 검사. 값이 5개 이상 있는 항목 중 90% 미만만 정상이면 문제로 본다.
+function validateReportData(format, data) {
+  const problems = [];
+  const check = (label, values, ok) => {
+    const vals = values.filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+    if (vals.length < 5) return;
+    const good = vals.filter(v => ok(String(v).trim())).length;
+    if (good / vals.length < 0.9) problems.push(`${label}: ${vals.length}개 중 ${vals.length - good}개가 예상 범위를 벗어남`);
+  };
+  const num = (lo, hi) => v => { const n = Number(v); return !isNaN(n) && n >= lo && n <= hi; };
+  const grade = v => /^[1-9]$/.test(v);
+  const notNum = v => isNaN(Number(v));
+  const pick = f => data.map(f);
+  const exps = data.flatMap(s => s.탐구목록 || []);
+
+  check('학년', pick(s => s.학년), v => /^[1-3]$/.test(v));
+  check('번호', pick(s => s.번호), num(1, 99));
+  check('국어 표준점수', pick(s => s.국어.표준점수), num(0, 200));
+  check('수학 표준점수', pick(s => s.수학.표준점수), num(0, 200));
+  check('영어 등급', pick(s => s.영어.등급), grade);
+  check('한국사 등급', pick(s => s.한국사.등급), grade);
+  check('탐구 과목명', exps.map(e => e.과목), notNum);
+  check('탐구 표준점수', exps.map(e => e.표준점수), num(0, 100));
+  if (format === 'area') {
+    check('국어 원점수', pick(s => s.국어.원점수), num(0, 100));
+    check('국어 백분위', pick(s => s.국어.백분위), num(0, 100));
+    check('국어 등급', pick(s => s.국어.등급), grade);
+    check('수학 원점수', pick(s => s.수학.원점수), num(0, 100));
+    check('수학 백분위', pick(s => s.수학.백분위), num(0, 100));
+    check('수학 등급', pick(s => s.수학.등급), grade);
+    check('영어 원점수', pick(s => s.영어.원점수), num(0, 100));
+    check('한국사 원점수', pick(s => s.한국사.원점수), num(0, 50));
+    check('탐구 원점수', exps.map(e => e.원점수), num(0, 50));
+    check('탐구 백분위', exps.map(e => e.백분위), num(0, 100));
+    check('탐구 등급', exps.map(e => e.등급), grade);
+  }
+  return problems;
 }
 
 // 탐구 과목명을 사회/과학으로 분류 (2학년 리포트는 '사회탐구'/'과학탐구'로 이미 명시되기도 함)
@@ -208,51 +368,92 @@ function classifyExploreCategory(name) {
   return null;
 }
 
-// "[표준점수 기준] 수능성적표" 형식(순위/학급/번호/이름/총점/국어/수학/영어/한국사/탐구1선택/탐구2선택)을
-// 파싱하여 공통 학생 데이터 구조로 변환. 원점수/백분위는 이 리포트에 없으므로 빈 값으로 둔다.
-function parseStdReportRows(rows) {
-  if (!rows || rows.length < 4) return [];
-  const data = [];
-  for (let i = 3; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length < 32 || !row[3]) continue;
-    const classInfo = splitClassNumber(row[1]);
+// 성적표 칸 값 정리: '-'·빈칸은 '', 숫자는 "40.0" → "40"
+function reportValue(x) {
+  const t = (x === undefined || x === null) ? '' : String(x).trim();
+  if (t === '' || t === '-') return '';
+  const n = Number(t);
+  return isNaN(n) ? t : String(n);
+}
+function reportName(x) {
+  const t = (x === undefined || x === null) ? '' : String(x).trim();
+  return t === '-' ? '' : t;
+}
+// '사회탐구'/'과학탐구'처럼 통칭이면 비워둔다 (선택과목명만 보관)
+function specificExploreName(n) {
+  const t = (typeof normalizeSubjectName === 'function') ? normalizeSubjectName(n) : String(n || '').trim();
+  return (t === '사회탐구' || t === '과학탐구') ? '' : t;
+}
 
-    const explore1Cat = classifyExploreCategory(row[26]);
-    const explore2Cat = classifyExploreCategory(row[29]);
-    let socialScore = '', scienceScore = '';
-    // 선택과목명도 함께 보관 — 구 교육과정(선택과목제)에서 원점수/백분위를 역산할 때
-    // 학생이 실제로 본 과목의 변환표를 찾는 데 쓴다 ('사회탐구'처럼 통칭이면 비워둔다)
-    let socialName = '', scienceName = '';
-    const specificName = (n) => {
-      const t = (typeof normalizeSubjectName === 'function') ? normalizeSubjectName(n) : String(n || '').trim();
-      return (t === '사회탐구' || t === '과학탐구') ? '' : t;
+// "[표준점수 기준] 수능성적표": 원점수/백분위는 없으므로 빈 값으로 둔다 (나중에 등급컷 시험 자료로 역산)
+// idx: 머리글 경로로 찾은 열 번호 (REPORT_FORMATS의 cols 키)
+function parseStdReportRows(dataRows, idx) {
+  return dataRows.map(row => {
+    const g = key => row[idx[key]];
+    const classInfo = splitClassNumber(g('학급'));
+    const explores = [['탐1과목', '탐1표준'], ['탐2과목', '탐2표준']]
+      .map(([nk, sk]) => ({ name: reportName(g(nk)), score: reportValue(g(sk)) }))
+      .filter(e => e.name && e.score)
+      .map(e => ({ 과목: specificExploreName(e.name), 분류: classifyExploreCategory(e.name), 원점수: '', 표준점수: e.score, 백분위: '', 등급: '' }));
+    // 사회탐구/과학탐구 칸: 분류별 마지막 과목 — 과목명도 보관 (역산할 때 학생이 본 과목의 변환표를 찾는다)
+    const bucket = cat => {
+      const e = explores.filter(x => x.분류 === cat).pop();
+      return { 원점수: '', 표준점수: e ? e.표준점수 : '', 백분위: '', 과목: e ? e.과목 : '' };
     };
-    if (explore1Cat === 'social') { socialScore = row[27] || ''; socialName = specificName(row[26]); }
-    else if (explore1Cat === 'science') { scienceScore = row[27] || ''; scienceName = specificName(row[26]); }
-    if (explore2Cat === 'social') { socialScore = row[30] || ''; socialName = specificName(row[29]); }
-    else if (explore2Cat === 'science') { scienceScore = row[30] || ''; scienceName = specificName(row[29]); }
-
-    data.push({
+    return {
       학년: classInfo.학년,
       반: classInfo.반,
-      번호: row[2] || '',
-      이름: row[3] || '',
+      번호: reportValue(g('번호')),
+      이름: reportName(g('이름')),
       // 과목: 3학년은 선택과목명(화법과작문, 미적분 등), 1·2학년은 '국어'/'수학' — 대교협 자료의 영역 칸에 쓴다
-      국어: { 원점수: '', 표준점수: row[9] || '', 백분위: '', 과목: (row[8] && row[8] !== '-') ? row[8] : '' },
-      수학: { 원점수: '', 표준점수: row[14] || '', 백분위: '', 과목: (row[13] && row[13] !== '-') ? row[13] : '' },
-      영어: { 원점수: '', 등급: row[18] || '' },
-      한국사: { 원점수: '', 등급: row[22] || '' },
-      사회탐구: { 원점수: '', 표준점수: socialScore, 백분위: '', 과목: socialName },
-      과학탐구: { 원점수: '', 표준점수: scienceScore, 백분위: '', 과목: scienceName },
-      // 탐구1/탐구2를 원래 순서·과목명 그대로 보관 (사회 2과목을 본 학생도 잃지 않도록).
-      // 분석은 위의 사회탐구/과학탐구를 쓰고, 이 목록은 대교협 자료 내보내기 등에서 쓴다.
-      탐구목록: [[row[26], row[27], explore1Cat], [row[29], row[30], explore2Cat]]
-        .filter(([name, score]) => name && name !== '-' && score && score !== '-')
-        .map(([name, score, cat]) => ({ 과목: specificName(name), 분류: cat, 원점수: '', 표준점수: score, 백분위: '', 등급: '' }))
+      국어: { 원점수: '', 표준점수: reportValue(g('국어표준')), 백분위: '', 과목: reportName(g('국어과목')) },
+      수학: { 원점수: '', 표준점수: reportValue(g('수학표준')), 백분위: '', 과목: reportName(g('수학과목')) },
+      영어: { 원점수: '', 등급: reportValue(g('영어등급')) },
+      한국사: { 원점수: '', 등급: reportValue(g('한국사등급')) },
+      사회탐구: bucket('social'),
+      과학탐구: bucket('science'),
+      // 탐구1/탐구2를 원래 순서·과목명 그대로 보관 (사회 2과목을 본 학생도 잃지 않도록)
+      탐구목록: explores
+    };
+  });
+}
+
+// "[영역별 기준] 수능성적표": 원점수·표준점수·백분위·등급이 모두 공식 값으로 들어 있다
+function parseAreaReportRows(dataRows, idx) {
+  return dataRows.map(row => {
+    const g = key => row[idx[key]];
+    const classInfo = splitClassNumber(g('학급'));
+    const subj = p => ({
+      과목: reportName(g(p + '과목')), 원점수: reportValue(g(p + '원점수')), 표준점수: reportValue(g(p + '표준')),
+      백분위: reportValue(g(p + '백분위')), 등급: reportValue(g(p + '등급'))
     });
-  }
-  return data;
+    const explores = ['탐1', '탐2'].map(p => {
+      const e = subj(p);
+      if (!e.과목 && !e.표준점수 && !e.원점수) return null;
+      return { ...e, 과목: specificExploreName(e.과목), 분류: classifyExploreCategory(e.과목) };
+    }).filter(Boolean);
+    const bucket = cat => {
+      const e = explores.filter(x => x.분류 === cat).pop();
+      return e ? { 원점수: e.원점수, 표준점수: e.표준점수, 백분위: e.백분위, 등급: e.등급, 과목: e.과목 }
+               : { 원점수: '', 표준점수: '', 백분위: '', 등급: '', 과목: '' };
+    };
+    // 제2외국어: 과목이 비어 있으면(점수 0) 미응시
+    const f2name = reportName(g('제2외과목'));
+    return {
+      학년: classInfo.학년,
+      반: classInfo.반,
+      번호: reportValue(g('번호')),
+      이름: reportName(g('이름')),
+      국어: subj('국어'),
+      수학: subj('수학'),
+      영어: { 원점수: reportValue(g('영어원점수')), 등급: reportValue(g('영어등급')) },
+      한국사: { 원점수: reportValue(g('한국사원점수')), 등급: reportValue(g('한국사등급')) },
+      사회탐구: bucket('social'),
+      과학탐구: bucket('science'),
+      탐구목록: explores,
+      제2외국어: f2name ? { 과목: f2name, 원점수: reportValue(g('제2외원점수')), 등급: reportValue(g('제2외등급')) } : null
+    };
+  });
 }
 
 // CSV 구조 파싱 (공통)
@@ -369,20 +570,25 @@ function renderUploadSummary(data, fileName) {
   const gradeText = grades.map(g => g + '학년').join(', ');
 
   // 등급컷이 이미 입력되어 있으면(예: 실채점 데이터를 다시 올리는 경우) 바로 분석 화면으로 안내
-  const hasGradeCuts = (typeof gradeCuts !== 'undefined') &&
-    gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
+  const hasGradeCuts = (typeof hasGradingBasis === 'function') && hasGradingBasis();
 
   card.classList.remove('hidden');
   if (hasGradeCuts) {
     // 이미 불러온 등급컷이 있으면 그 시험 기준으로 분석한다. 다른 시험 파일일 수도 있으니
     // 어떤 시험의 등급컷인지 보여주고, 학년이 다르면 경고한다 (예전엔 아무 확인 없이 바로 분석했다)
     const ex = window.__lastEbsiExam;
-    const cutLabel = ex ? `${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}`.trim() : '직접 입력한 등급컷';
-    const gradeMismatch = ex && ex.gradeVal && grades.length && !grades.includes(String(ex.gradeVal));
+    const official = window.uploadedReportFormat === 'area';
+    const hasCuts = gradeCuts.target.std.korean.length > 0;
+    const cutLabel = official
+      ? '성적표의 공식 등급 사용 (영역별 기준)' + (hasCuts && ex ? ` · 참고 등급컷: ${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}` : '')
+      : (ex ? `${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}`.trim() : '직접 입력한 등급컷');
+    // 공식 등급을 쓰는 파일은 등급컷이 다른 시험이어도 등급이 틀어지지 않으므로 경고하지 않는다
+    const gradeMismatch = !official && ex && ex.gradeVal && grades.length && !grades.includes(String(ex.gradeVal));
     card.innerHTML = `
       <div class="upload-summary-info">
         <strong>${escapeHtml(fileName)}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
-        <div class="upload-summary-note">현재 등급컷: ${escapeHtml(cutLabel)}${gradeMismatch ? ' — <strong>파일 학년과 다릅니다. 다른 시험이면 등급컷을 다시 불러오세요.</strong>' : ''}</div>
+        <div class="upload-summary-note">인식한 형식: ${escapeHtml(window.uploadedReportLabel || '-')}</div>
+        <div class="upload-summary-note">${official ? '등급 기준' : '현재 등급컷'}: ${escapeHtml(cutLabel)}${gradeMismatch ? ' — <strong>파일 학년과 다릅니다. 다른 시험이면 등급컷을 다시 불러오세요.</strong>' : ''}</div>
       </div>
       <button class="upload-next-btn" onclick="showSection('analyze')">
         바로 분석하러 가기
@@ -397,6 +603,7 @@ function renderUploadSummary(data, fileName) {
     card.innerHTML = `
       <div class="upload-summary-info">
         <strong>${escapeHtml(fileName)}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
+        <div class="upload-summary-note">인식한 형식: ${escapeHtml(window.uploadedReportLabel || '-')}</div>
       </div>
       <button class="upload-next-btn" onclick="showSection('cut')">
         등급컷 입력하러 가기
