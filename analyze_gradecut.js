@@ -9,6 +9,40 @@ let analyzeTab = 'all'; // 현재 활성화된 탭 ('all': 전체분석, 'compar
 let compareParsedData = []; // 비교용 파일에서 파싱된 학생 데이터 배열
 let compareFileName = ''; // 업로드된 비교 파일명
 
+// 비교 성적 분석의 학년 필터 ('' = 전체)
+window.compareTargetGrade = '';
+window.compareCompareGrade = '';
+function getCompareTargetData() {
+  return window.compareTargetGrade ? parsedData.filter(s => String(s.학년) === window.compareTargetGrade) : parsedData;
+}
+function getCompareCompareData() {
+  return window.compareCompareGrade ? compareParsedData.filter(s => String(s.학년) === window.compareCompareGrade) : compareParsedData;
+}
+// 학년 필터 드롭다운을 데이터에 맞게 채우고, 바뀌면 비교 결과를 다시 그린다
+function updateCompareGradeFilters() {
+  const tSel = document.getElementById('compareTargetGradeSel');
+  const cSel = document.getElementById('compareCompareGradeSel');
+  if (tSel) {
+    const grades = [...new Set(parsedData.map(s => String(s.학년)).filter(Boolean))].sort();
+    const prev = window.compareTargetGrade;
+    tSel.innerHTML = '<option value="">전체</option>' + grades.map(g => `<option value="${g}">${g}학년</option>`).join('');
+    tSel.value = grades.includes(prev) ? prev : '';
+    window.compareTargetGrade = tSel.value;
+  }
+  if (cSel) {
+    const grades = [...new Set(compareParsedData.map(s => String(s.학년)).filter(Boolean))].sort();
+    const prev = window.compareCompareGrade;
+    cSel.innerHTML = '<option value="">전체</option>' + grades.map(g => `<option value="${g}">${g}학년</option>`).join('');
+    cSel.value = grades.includes(prev) ? prev : '';
+    window.compareCompareGrade = cSel.value;
+  }
+}
+function onCompareGradeFilterChange() {
+  window.compareTargetGrade = document.getElementById('compareTargetGradeSel')?.value || '';
+  window.compareCompareGrade = document.getElementById('compareCompareGradeSel')?.value || '';
+  if (compareParsedData.length) renderCompareResult();
+}
+
 // 등급컷 입력(학년/대분류/하위과목) UI 상태
 let cutSelectedGrade = '1'; // '1' | '2' | '3'
 let cutMajorTab = ''; // 대분류 탭 키
@@ -26,6 +60,13 @@ let cutSelections = {
     science: '물리학 I'
   }
 };
+
+// EBSi 관련 오류 메시지를 한 형식으로 통일해서 보여준다 (기존엔 6곳에 문구가 조금씩 제각각이었음)
+function showEbsiError(context, e) {
+  const detail = e?.message || String(e || '');
+  showMessage(`${context} 중 오류가 발생했습니다.\n${detail}`);
+  console.error(e);
+}
 
 // 과목 슬러그 유틸
 function subjectSlug(name) {
@@ -80,6 +121,12 @@ function fillForwardMissing(arr) {
 const SUBJECT_SETS = {
   g2: {
     basic: ['국어', '수학', '영어', '한국사'],
+    // 2026년(2026학년도)부터 2학년 탐구가 선택과목제(9+4개)에서 1학년과 같은 공통과목(통합사회/통합과학)으로 개편됨
+    basicNew: [
+      { name: '국어', key: 'korean' }, { name: '수학', key: 'math' },
+      { name: '영어', key: 'english' }, { name: '한국사', key: 'history' },
+      { name: '통합사회', key: 'social' }, { name: '통합과학', key: 'science' }
+    ],
     social: ['생활과윤리', '윤리와사상', '한국지리', '세계사', '세계지리', '동아시아사', '정치와법', '경제', '사회문화'],
     science: ['물리학 I', '화학 I', '생명과학 I', '지구과학 I']
   },
@@ -91,6 +138,86 @@ const SUBJECT_SETS = {
     science: ['물리학 I', '화학 I', '생명과학 I', '지구과학 I', '물리학 II', '화학 II', '생명과학 II', '지구과학 II']
   }
 };
+
+// 2022 개정 교육과정 적용으로 탐구가 선택과목제 -> 공통과목(통합사회/통합과학)으로 바뀌는 연차를 판단한다.
+// 1학년은 이미 항상 공통과목 체계(기존 UI 그대로), 2학년은 2026학년도부터, 3학년은 2027학년도부터 적용된다.
+// (연도를 알 수 없으면 기존 선택과목제로 동작 — 하위 호환)
+function isNewTamguSystem(gradeSelVal, year) {
+  const y = Number(year);
+  if (gradeSelVal === '1') return true;
+  if (isNaN(y)) return false;
+  if (gradeSelVal === '2') return y >= 2026;
+  if (gradeSelVal === '3') return y >= 2027;
+  return false;
+}
+
+// 성적 분석 엔진(getGradeDistByCut 등)은 항상 gradeCuts.target(1학년과 동일한 단순 구조)만 참조한다.
+// 2학년이 신 교육과정(통합사회/통합과학 공통과목)이면 선택과목 조합 문제가 없어 1학년과 동일하게
+// 취급할 수 있으므로, 입력/조회된 값을 gradeCuts.target에도 그대로 반영해 분석이 실제로 동작하게 한다.
+// (구교육과정 선택과목제는 학생별 선택과목이 다를 수 있어 이 방식으로 단순 이관할 수 없다 — 별도 과제)
+function syncG2BasicToTargetIfNewSystem(year) {
+  if (!isNewTamguSystem('2', year)) return;
+  ensureGradeCutDetails();
+  const d2 = gradeCuts.details['2'];
+  const cut = gradeCuts.target;
+  ['korean', 'math', 'english', 'history', 'social', 'science'].forEach(subj => {
+    cut.raw[subj] = (d2.basic.raw[subj] || []).map(v => (v === undefined || isNaN(v)) ? 0 : v);
+    cut.std[subj] = (d2.basic.std[subj] || []).map(v => (v === undefined || isNaN(v)) ? 0 : v);
+  });
+  cut.exploreBySubject = null;
+}
+
+// 2학년 구교육과정(선택과목제)·3학년 등급컷도 분석 엔진이 쓰는 gradeCuts.target에 옮긴다.
+// 예전엔 이 경우 details에만 저장되고 target은 비어 있어서, 등급컷을 불러와도 "저장 안 됨"으로 취급돼
+// 성적 확인·성적 분석이 열리지 않았다.
+// - 국어/수학: 표준점수 등급컷(3학년은 선택과목 통합 표준점수). 3학년 원점수는 선택과목마다 달라 비워둔다.
+// - 영어/한국사: 원점수 등급컷
+// - 탐구: 학생마다 과목이 달라 한 줄로 합칠 수 없으므로 과목별 등급컷(exploreBySubject)으로 넘기고,
+//   resolveStudentGrade가 학생의 과목명으로 찾아 쓴다.
+function syncDetailsToTarget(gradeKey, year) {
+  if (gradeKey === '2' && isNewTamguSystem('2', year)) { syncG2BasicToTargetIfNewSystem(year); return; }
+  if (gradeKey !== '2' && gradeKey !== '3') return;
+  ensureGradeCutDetails();
+  const clean = arr => (Array.isArray(arr) ? arr : []).map(v => (v === undefined || v === null || isNaN(v)) ? 0 : Number(v));
+  const cut = gradeCuts.target;
+  const bySubject = {};
+  if (gradeKey === '2') {
+    const d2 = gradeCuts.details['2'];
+    ['korean', 'math', 'english', 'history'].forEach(subj => {
+      cut.raw[subj] = clean(d2.basic.raw[subj]);
+      cut.std[subj] = clean(d2.basic.std[subj]);
+    });
+    [d2.social, d2.science].forEach(group => Object.keys(group || {}).forEach(slug => {
+      bySubject[slug] = { raw: clean(group[slug].raw), std: clean(group[slug].std) };
+    }));
+  } else {
+    const d3 = gradeCuts.details['3'];
+    cut.raw.korean = []; cut.raw.math = [];
+    cut.std.korean = clean(d3.korCombined?.std);
+    cut.std.math = clean(d3.mathCombined?.std);
+    ['english', 'history'].forEach(subj => {
+      cut.raw[subj] = clean(d3.engHis.raw[subj]);
+      cut.std[subj] = clean(d3.engHis.std[subj]);
+    });
+    [d3.social, d3.science].forEach(group => Object.keys(group || {}).forEach(slug => {
+      bySubject[slug] = { raw: clean(group[slug].raw), std: clean(group[slug].std) };
+    }));
+  }
+  cut.raw.social = []; cut.raw.science = [];
+  cut.std.social = []; cut.std.science = [];
+  cut.exploreBySubject = bySubject;
+  if (year) cut.year = year;
+}
+
+// 선택과목제 탐구: 학생 기록의 과목명으로 그 과목의 등급컷을 찾는다 (없으면 null)
+function exploreCutsForRecord(record, scoreField) {
+  const map = gradeCuts.target.exploreBySubject;
+  if (!map || !record || !record.과목) return null;
+  const entry = map[subjectSlug(normalizeSubjectName(record.과목))];
+  if (!entry) return null;
+  const cuts = scoreField === '원점수' ? entry.raw : entry.std;
+  return cutsAreUsable(cuts) ? cuts : null;
+}
 
 // details 저장소 초기화 헬퍼
 function ensureGradeCutDetails() {
@@ -152,14 +279,39 @@ function initCutTable() {
   const ebsiGradeEl = document.getElementById('ebsiGrade');
   const gval = ebsiGradeEl?.value || '';
   const gmap = { D100: '1', D200: '2', D300: '3' };
-  cutSelectedGrade = gmap[gval] || cutSelectedGrade || '1';
+  if (gval) {
+    cutSelectedGrade = gmap[gval] || cutSelectedGrade || '1';
+  } else if (!window._cutGradeUserSet && parsedData && parsedData.length > 0) {
+    // 사용자가 아직 학년을 직접 고르지 않았다면, 업로드된 데이터의 학년을 기본값으로 삼는다.
+    // (예전엔 항상 '1'로 시작해서, 2·3학년 파일을 올리자마자 등급컷 탭에 들어가는 순간
+    //  아무것도 안 했는데 "학년이 다르다"는 경고가 바로 떴었다)
+    const uploadedGrades = [...new Set(parsedData.map(s => String(s.학년)))];
+    if (uploadedGrades.length === 1 && ['1', '2', '3'].includes(uploadedGrades[0])) {
+      cutSelectedGrade = uploadedGrades[0];
+    } else {
+      cutSelectedGrade = cutSelectedGrade || '1';
+    }
+  } else {
+    cutSelectedGrade = cutSelectedGrade || '1';
+  }
   if (ebsiGradeEl && !ebsiGradeEl.dataset.cutInitBound) {
-    ebsiGradeEl.addEventListener('change', () => initCutTable());
+    ebsiGradeEl.addEventListener('change', () => { window._cutGradeUserSet = true; initCutTable(); });
     ebsiGradeEl.dataset.cutInitBound = '1';
   }
 
-  // 학년 불일치 경고 (1회만)
-  if (parsedData && parsedData.length > 0) {
+  // 연도에 따라 탐구가 선택과목제인지 공통과목(통합사회/통합과학)제인지 판단
+  // (예: 2학년은 2026학년도부터 1학년처럼 통합사회/통합과학 공통과목으로 개편됨)
+  const ebsiYearEl = document.getElementById('ebsiYear');
+  const selectedYear = ebsiYearEl?.value || gradeCuts.details?.[cutSelectedGrade]?.year || cut.year || '';
+  const newTamguSystem = isNewTamguSystem(cutSelectedGrade, selectedYear);
+  if (ebsiYearEl && !ebsiYearEl.dataset.cutInitBound) {
+    ebsiYearEl.addEventListener('change', () => initCutTable());
+    ebsiYearEl.dataset.cutInitBound = '1';
+  }
+
+  // 학년 불일치 경고: 사용자가 학년 드롭다운을 "직접 바꾼" 뒤에만 검사한다.
+  // (자동으로 맞춰준 초기값 상태에서는 애초에 불일치가 안 생기고, 이 경고도 뜨지 않는다)
+  if (window._cutGradeUserSet && parsedData && parsedData.length > 0) {
     const fileGrades = [...new Set(parsedData.map(s => String(s.학년)))];
     if (fileGrades.length === 1 && fileGrades[0] !== cutSelectedGrade) {
       if (!window._gradeWarnShown || window._gradeWarnShown !== cutSelectedGrade) {
@@ -242,15 +394,22 @@ function initCutTable() {
   function renderMajorTabs() {
     let tabsHtml = '<div class="mb-18">';
     if (cutSelectedGrade === '2') {
-      const tabs = [
-        { key: 'g2_basic', label: '국어/수학/영어/한국사' },
-        { key: 'g2_social', label: '사회탐구' },
-        { key: 'g2_science', label: '과학탐구' }
-      ];
-      if (!cutMajorTab) cutMajorTab = 'g2_basic';
-      tabs.forEach(t => {
-        tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab === t.key ? 'active' : ''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
-      });
+      // 신 교육과정(통합사회/통합과학, 2026학년도~)은 탐구가 공통과목이라 별도 탭이 필요 없음
+      const tabs = newTamguSystem
+        ? [{ key: 'g2_basic', label: '국어/수학/영어/한국사/통합사회/통합과학' }]
+        : [
+          { key: 'g2_basic', label: '국어/수학/영어/한국사' },
+          { key: 'g2_social', label: '사회탐구' },
+          { key: 'g2_science', label: '과학탐구' }
+        ];
+      if (!cutMajorTab || (newTamguSystem && cutMajorTab !== 'g2_basic')) cutMajorTab = 'g2_basic';
+      if (tabs.length > 1) {
+        tabs.forEach(t => {
+          tabsHtml += `<button class="analyze-tab-btn ${cutMajorTab === t.key ? 'active' : ''}" onclick="(function(){cutMajorTab='${t.key}'; initCutTable();})()">${t.label}</button> `;
+        });
+      } else {
+        tabsHtml += `<span class="analyze-tab-btn active" style="cursor:default;">${tabs[0].label} <span style="font-weight:normal; opacity:0.75;">(2022 개정 교육과정 · 공통과목)</span></span>`;
+      }
     } else if (cutSelectedGrade === '3') {
       const tabs = [
         { key: 'g3_km', label: '국어/수학' },
@@ -301,29 +460,33 @@ function initCutTable() {
   // 콘텐츠 영역
   if (cutSelectedGrade === '2') {
     if (cutMajorTab === 'g2_basic') {
-      // 2학년: 국/수/영/한 한 화면 입력
+      // 2학년: 국/수/영/한(+신 교육과정이면 통합사회/통합과학까지) 한 화면 입력
+      // 영어/한국사는 절대평가라 표준점수 자체가 없으므로, 원점수 표에만 포함하고 표준점수 표에서는 제외한다
       const d = gradeCuts.details['2'];
-      const subjects = SUBJECT_SETS.g2.basic;
+      const rawSubjects = newTamguSystem
+        ? SUBJECT_SETS.g2.basicNew
+        : SUBJECT_SETS.g2.basic.map(n => ({ name: n, key: subjectSlug(n) }));
+      const stdSubjects = rawSubjects.filter(s => s.key !== 'english' && s.key !== 'history');
       html += '<div class="grade-cut-tables-container">';
       // 원점수 표
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + subjects.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
-      html += renderEightRowsCells((i) => subjects.map(n => {
-        const k = subjectSlug(n);
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">원점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + rawSubjects.map(s => `<th>${s.name}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => rawSubjects.map(s => {
+        const k = s.key;
         const v = d.basic.raw[k]?.[i - 1] ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"raw\" data-category=\"g2_basic\" data-subject=\"${k}\" data-level=\"${i}\" id=\"raw_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
-      // 표준점수 표
-      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + subjects.map(n => `<th>${n}</th>`).join('') + '</tr></thead><tbody>';
-      html += renderEightRowsCells((i) => subjects.map(n => {
-        const k = subjectSlug(n);
+      // 표준점수 표 (영어/한국사 제외)
+      html += '<div class="table-wrapper">\n<h4 class="mb-6">표준점수 등급컷</h4>\n<table class="cut-table">\n<thead><tr><th class="no-copy">등급</th>' + stdSubjects.map(s => `<th>${s.name}</th>`).join('') + '</tr></thead><tbody>';
+      html += renderEightRowsCells((i) => stdSubjects.map(s => {
+        const k = s.key;
         const v = d.basic.std[k]?.[i - 1] ?? '';
         return `<td><input class=\"grade-cut-input\" type=\"number\" data-grade=\"2\" data-type=\"std\" data-category=\"g2_basic\" data-subject=\"${k}\" data-level=\"${i}\" id=\"std_${k}${i}\" placeholder=\"점수\" value=\"${v}\"></td>`;
       }).join(''));
       html += '</tbody></table></div>';
       html += '</div>';
     }
-    if (cutMajorTab === 'g2_social') {
+    if (!newTamguSystem && cutMajorTab === 'g2_social') {
       const list = SUBJECT_SETS.g2.social;
       const d = gradeCuts.details['2'].social;
       // 원점수(스택 상단)
@@ -345,7 +508,7 @@ function initCutTable() {
       }).join(''));
       html += '</tbody></table></div>';
     }
-    if (cutMajorTab === 'g2_science') {
+    if (!newTamguSystem && cutMajorTab === 'g2_science') {
       const list = SUBJECT_SETS.g2.science;
       const d = gradeCuts.details['2'].science;
       html += '<div class="grade-cut-tables-container">';
@@ -525,6 +688,7 @@ window.applyCut = function (silent) {
     // 1학년: 기존 방식 저장
     if (cutSelectedGrade === '1') {
       const cut = gradeCuts.target;
+      cut.exploreBySubject = null;
       for (let i = 1; i <= 8; i++) {
         cut.raw.korean[i - 1] = Number(document.getElementById('raw_korean' + i).value);
         cut.raw.math[i - 1] = Number(document.getElementById('raw_math' + i).value);
@@ -585,9 +749,13 @@ window.applyCut = function (silent) {
           }
         }
       });
+
+      // 분석 엔진이 참조하는 gradeCuts.target에도 반영 (2학년 신·구 교육과정, 3학년 모두)
+      const selYear = document.getElementById('ebsiYear')?.value || gradeCuts.details[cutSelectedGrade]?.year || gradeCuts.target.year || '';
+      syncDetailsToTarget(cutSelectedGrade, selYear);
     }
 
-    if (!silent) showMessage('등급컷이 저장되었습니다. 데이터 입력이 반영되었습니다.');
+    if (!silent) showToast('등급컷이 저장되었습니다. 데이터 입력이 반영되었습니다.');
     if (typeof updateStepIndicator === 'function') updateStepIndicator();
     hideLoading();
   }, 300);
@@ -642,6 +810,17 @@ function validateCutInputs(applyStyles = false) {
   // 원점수 0~100, 표준점수 0~200, 단조감소
   const validateGroup = (type, rangeMax) => {
     Object.keys(groups[type]).forEach(subj => {
+      // 실채점 발표 이후 EBSi에서 원점수 등급컷이 삭제되는 경우가 있어,
+      // 원점수 입력칸을 전부 비워두면(=미제공) 필수 입력으로 취급하지 않고 통과시킨다.
+      if (type === 'raw') {
+        const cells = [];
+        for (let i = 1; i <= 8; i++) { if (groups[type][subj][i]) cells.push(groups[type][subj][i]); }
+        const allBlank = cells.length > 0 && cells.every(el => el.value === '');
+        if (allBlank) {
+          cells.forEach(el => markEl(el, true));
+          return;
+        }
+      }
       let prev = Infinity;
       for (let i = 1; i <= 8; i++) {
         const el = groups[type][subj][i];
@@ -668,6 +847,353 @@ function validateCutInputs(applyStyles = false) {
   return { valid: errors.length === 0, errors };
 }
 
+// ------------------- suneungcalc.com 참고 원점수 자동완성 -------------------
+/**
+ * suneungcalc.com의 데이터 파일(https://suneungcalc.com/js/data.js)은 시험(연도/월/시험유형)별로
+ * 과목당 [표준점수, 백분위, 등급] 배열을 원점수 내림차순 인덱스로 담고 있다.
+ * 예: data["202692nd"]["통합사회"][idx] -> 원점수 = 50 - idx*(50/(배열길이-1))
+ * (국어/수학은 원점수 만점 100, 탐구는 만점 50 — 신교육과정 통합사회/통합과학은 0.5점 단위라 배열이 촘촘할 뿐,
+ *  공식은 동일하게 "만점 - idx*(만점/(배열길이-1))"로 계산하면 자동으로 맞는다)
+ * 이 데이터는 실제 실행 가능한 JS 파일(let data = {...})이라 JSON.parse로는 못 읽으므로(주석/트레일링 콤마 포함),
+ * new Function으로 격리된 스코프에서 실행해 값만 꺼내온다. 하드코딩된 신뢰 도메인만 로드한다.
+ */
+window.loadSuneungCalcData = async function () {
+  if (window.__suneungCalcData) return window.__suneungCalcData;
+  const res = await fetch('https://suneungcalc.com/js/data.js');
+  if (!res.ok) throw new Error('data.js를 불러오지 못했습니다. (HTTP ' + res.status + ')');
+  const text = await res.text();
+  const factory = new Function(text + '\n;return (typeof data !== "undefined") ? data : null;');
+  const parsed = factory();
+  if (!parsed) throw new Error('data.js에서 데이터를 찾지 못했습니다.');
+  window.__suneungCalcData = parsed;
+  return parsed;
+};
+
+// suneungcalc 과목명과 우리 내부 과목명/슬러그 사이의 표기 차이(공백, 가운뎃점, 로마숫자 등)를 무시하고 비교
+function suneungNormKey(s) {
+  return String(s || '')
+    .replace(/\s+/g, '')
+    .replace(/[·∙·]/g, '')
+    .replace(/Ⅰ/g, 'I').replace(/Ⅱ/g, 'II')
+    .trim();
+}
+
+// examObj(특정 시험의 과목별 데이터)에서 candidates 이름 중 하나와 일치하는 실제 키를 찾는다.
+function suneungFindSubjectKey(examObj, candidates) {
+  if (!examObj) return null;
+  const keys = Object.keys(examObj);
+  for (const cand of candidates) {
+    const normCand = suneungNormKey(cand);
+    const found = keys.find(k => suneungNormKey(k) === normCand);
+    if (found) return found;
+  }
+  return null;
+}
+
+// 표준점수로 원점수를 역산 (정확히 일치하는 값이 있을 때만 반환, 근사치 추정은 하지 않음)
+function suneungReverseRaw(arr, stdTarget, maxRaw) {
+  if (!Array.isArray(arr) || arr.length < 2) return null;
+  const target = Number(stdTarget);
+  if (isNaN(target)) return null;
+  const step = maxRaw / (arr.length - 1);
+  for (let idx = 0; idx < arr.length; idx++) {
+    const entry = arr[idx];
+    if (entry && entry.length && Number(entry[0]) === target) {
+      const raw = maxRaw - idx * step;
+      return Math.round(raw * 100) / 100;
+    }
+  }
+  return null;
+}
+
+// 표준점수로 원점수+백분위를 함께 역산 (표준점수 등급컷 자동완성과 달리, 학생 개인별 추정에 사용)
+function suneungReverseLookup(arr, stdTarget, maxRaw) {
+  if (!Array.isArray(arr) || arr.length < 2) return null;
+  const target = Number(stdTarget);
+  if (isNaN(target)) return null;
+  const step = maxRaw / (arr.length - 1);
+  for (let idx = 0; idx < arr.length; idx++) {
+    const entry = arr[idx];
+    if (entry && entry.length && Number(entry[0]) === target) {
+      const raw = Math.round((maxRaw - idx * step) * 100) / 100;
+      const percentile = entry[1] !== undefined ? Number(entry[1]) : null;
+      const grade = entry[2] !== undefined ? Number(entry[2]) : null;
+      return { raw, percentile: isNaN(percentile) ? null : percentile, grade: isNaN(grade) ? null : grade };
+    }
+  }
+  return null;
+}
+
+const SNC_SLUG_TO_KOREAN = {
+  soc_life_ethics: '생활과윤리', soc_ethics_thought: '윤리와사상', soc_k_geo: '한국지리', soc_world_history: '세계사',
+  soc_world_geo: '세계지리', soc_east_asia: '동아시아사', soc_politics_law: '정치와법', soc_economy: '경제', soc_society_culture: '사회문화',
+  sci_phy1: '물리학 I', sci_chem1: '화학 I', sci_bio1: '생명과학 I', sci_earth1: '지구과학 I',
+  sci_phy2: '물리학 II', sci_chem2: '화학 II', sci_bio2: '생명과학 II', sci_earth2: '지구과학 II'
+};
+
+/**
+ * 학생별 원점수/백분위를 suneungcalc.com 자료로 추정해 채운다.
+ * EBSi에서 방금 등급컷을 불러온 시험(연도/학년/시험) 정보가 있어야 동작한다.
+ * - 대상(target) 학생: window.__lastEbsiExam (등급컷 탭에서 불러온 시험)
+ * - 비교(compare) 학생: examContext로 직접 넘겨준 시험 정보 (비교 탭의 EBSi 등급컷 불러오기)
+ *   — 대상과 비교는 서로 다른 시험(예: 올해 vs 작년)일 수 있으므로 반드시 구분해서 써야 한다.
+ * 3학년 국어/수학은 공통+선택과목 조합형(회귀식)이라 단일 원점수로 역산할 수 없어 제외한다.
+ * 사회/과학은 통합과목(1학년 항상, 2학년은 2026학년도부터)일 때만 안전하게 역산 가능 —
+ * 구 교육과정 선택과목(개별 학생이 어떤 과목을 골랐는지 파일에 없음)은 추정하지 않는다.
+ * 이미 원점수가 있는 과목은 절대 덮어쓰지 않는다.
+ */
+async function estimateStudentsRawScores(students, examContext) {
+  const ctx = examContext || window.__lastEbsiExam;
+  if (!ctx) return;
+  const type = detectSncTypeFromExamText(ctx.examText, { '1': 'D100', '2': 'D200', '3': 'D300' }[ctx.gradeVal]);
+  const month = extractMonthFromExamText(ctx.examText);
+  if (!type || !month) return;
+  const yearNum = Number(ctx.year);
+  if (isNaN(yearNum)) return;
+  const sncYear = (type === 'sat') ? String(yearNum + 1) : ctx.year;
+  const key = `${sncYear}${month}${type}`;
+
+  let sncData;
+  try { sncData = await window.loadSuneungCalcData(); } catch (e) { return; }
+  const examObj = sncData[key];
+  if (!examObj) return;
+
+  // 추정한 값은 실제 원점수/백분위 칸에 그대로 채운다 — 한 번 채워지면 "성적 확인"뿐 아니라
+  // "성적 분석"의 통계·차트 등 원점수를 참조하는 모든 곳에서 자연스럽게 쓰이게 하기 위함.
+  // (이미 값이 있으면 절대 덮어쓰지 않는다)
+  //
+  // 원점수와 백분위는 따로 판단한다:
+  // - 백분위: 표준점수 → 백분위는 항상 1:1이라 표만 있으면 언제나 채울 수 있다.
+  // - 원점수: 3학년·수능형 국어/수학처럼 표 맨 앞에 회귀식(공통+선택 조합) 객체가 있는 과목은
+  //   원점수가 한 값으로 정해지지 않으므로 채우지 않는다. (학년이 아니라 데이터 모양으로 판단)
+  // fillGrade: 탐구목록처럼 선택과목별 등급컷이 따로 없는 경우, 변환표의 등급 칸으로 등급도 채운다
+  const fill = (rec, candidates, maxRaw, fillGrade) => {
+    if (!rec || !rec.표준점수) return;
+    const needRaw = !rec.원점수 || rec.원점수 === '';
+    const needPct = !rec.백분위 || rec.백분위 === '';
+    const needGrade = fillGrade && (!rec.등급 || rec.등급 === '');
+    if (!needRaw && !needPct && !needGrade) return;
+    const subjectKey = suneungFindSubjectKey(examObj, candidates.filter(Boolean));
+    if (!subjectKey) return;
+    const arr = examObj[subjectKey];
+    const result = suneungReverseLookup(arr, rec.표준점수, maxRaw);
+    if (!result) return;
+    const rawInvertible = Array.isArray(arr) && Array.isArray(arr[0]);
+    if (needRaw && rawInvertible) rec.원점수 = String(result.raw);
+    if (needPct && result.percentile !== null) rec.백분위 = String(result.percentile);
+    if (needGrade && result.grade !== null) rec.등급 = String(result.grade);
+  };
+
+  students.forEach(s => {
+    fill(s.국어, ['국어'], 100);
+    fill(s.수학, ['수학'], 100);
+    // 탐구: 학생이 실제로 응시한 선택과목명을 알면(표준점수 기준 리포트) 그 과목 표를 쓰고,
+    // 모르면 통합사회/통합과학(공통과목) 표를 시도한다. 둘 다 없으면 건너뛴다.
+    fill(s.사회탐구, [s.사회탐구?.과목, '사회', '통합사회'], 50);
+    fill(s.과학탐구, [s.과학탐구?.과목, '과학', '통합과학'], 50);
+    (s.탐구목록 || []).forEach(e => {
+      const common = e.분류 === 'science' ? ['과학', '통합과학'] : ['사회', '통합사회'];
+      fill(e, [e.과목, ...common], 50, true);
+    });
+  });
+}
+
+// ------------------- EBSi 불러오기 진행 상황 모달 -------------------
+// EBSi 등급컷 자동 불러오기(loadEbsiGradeCuts) 진행 과정을 단계별로 보여주는 체크리스트 모달.
+function showEbsiProgress(steps) {
+  const modal = document.getElementById('ebsiProgressModal');
+  const list = document.getElementById('ebsiProgressList');
+  const overlay = document.getElementById('overlay');
+  if (!modal || !list) return;
+  list.innerHTML = steps.map(s =>
+    `<li id="ebsiStep_${s.key}" class="pending"><span class="ebsi-step-icon">○</span><span class="ebsi-step-label">${s.label}</span></li>`
+  ).join('');
+  modal.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
+}
+const EBSI_STEP_ICON = { pending: '○', loading: '◐', done: '✓', skip: '－', error: '✕' };
+function setEbsiStepStatus(key, status, note) {
+  const li = document.getElementById('ebsiStep_' + key);
+  if (!li) return;
+  li.className = status;
+  const icon = li.querySelector('.ebsi-step-icon');
+  if (icon) icon.textContent = EBSI_STEP_ICON[status] || '○';
+  let noteEl = li.querySelector('.ebsi-step-note');
+  if (note) {
+    if (!noteEl) {
+      noteEl = document.createElement('span');
+      noteEl.className = 'ebsi-step-note';
+      li.appendChild(noteEl);
+    }
+    noteEl.textContent = ' - ' + note;
+  } else if (noteEl) {
+    noteEl.remove();
+  }
+}
+function hideEbsiProgress() {
+  const modal = document.getElementById('ebsiProgressModal');
+  const overlay = document.getElementById('overlay');
+  if (modal) modal.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+}
+// 이미 떠 있는 진행 모달에 단계를 하나 더 추가한다 (필요한 경우에만 동적으로 붙이기 위함)
+function addEbsiProgressStep(key, label) {
+  const list = document.getElementById('ebsiProgressList');
+  if (!list) return;
+  const li = document.createElement('li');
+  li.id = 'ebsiStep_' + key;
+  li.className = 'pending';
+  li.innerHTML = `<span class="ebsi-step-icon">○</span><span class="ebsi-step-label">${label}</span>`;
+  list.appendChild(li);
+}
+
+// EBSi에서 선택한 시험명 텍스트(예: "3.26 학력평가", "9월 모의평가")로 suneungcalc 시험유형/월을 추정한다.
+// (추측이 아니라 사용자가 EBSi에서 이미 고른 시험 그대로를 suneungcalc 키 형식으로 옮기는 것)
+function detectSncTypeFromExamText(examText, ebsiGradeVal) {
+  const t = String(examText || '');
+  if (t.includes('수능') || t.includes('모의평가')) return 'sat';
+  return { D100: '1st', D200: '2nd', D300: '3rd' }[ebsiGradeVal] || null;
+}
+function extractMonthFromExamText(examText) {
+  const m = String(examText || '').match(/(\d{1,2})\s*[.월]/);
+  return m ? String(Number(m[1])) : null;
+}
+
+// EBSi에서 방금 불러온 등급컷 중, 표준점수는 있는데 원점수가 비어있는 과목이 하나라도 있는지 확인한다.
+// (네트워크 요청 없이 판단 — 필요할 때만 suneungcalc 단계를 진행 상황 모달에 추가/실행하기 위함)
+function needsSuneungFill(gradeVal) {
+  const need = (stdArr, rawArr) => Array.isArray(stdArr) && stdArr.some(v => Number(v) > 0) && !cutsAreUsable(rawArr);
+  if (gradeVal === 'D100') {
+    const cut = gradeCuts.target;
+    return need(cut.std.korean, cut.raw.korean) || need(cut.std.math, cut.raw.math) ||
+      need(cut.std.social, cut.raw.social) || need(cut.std.science, cut.raw.science);
+  } else if (gradeVal === 'D200') {
+    const d2 = gradeCuts.details && gradeCuts.details['2'];
+    if (!d2) return false;
+    // 신 교육과정(통합사회/통합과학)은 d2.basic 안에 함께 저장됨
+    if (need(d2.basic.std.korean, d2.basic.raw.korean) || need(d2.basic.std.math, d2.basic.raw.math) ||
+      need(d2.basic.std.social, d2.basic.raw.social) || need(d2.basic.std.science, d2.basic.raw.science)) return true;
+    // 구 교육과정(선택과목제)은 과목별로 따로 저장됨
+    return Object.values(d2.social || {}).some(e => need(e.std, e.raw)) ||
+      Object.values(d2.science || {}).some(e => need(e.std, e.raw));
+  } else if (gradeVal === 'D300') {
+    const d3 = gradeCuts.details && gradeCuts.details['3'];
+    if (!d3) return false;
+    return Object.values(d3.social || {}).some(e => need(e.std, e.raw)) ||
+      Object.values(d3.science || {}).some(e => need(e.std, e.raw));
+  }
+  return false;
+}
+
+/**
+ * EBSi에서 등급컷(표준점수)을 불러온 뒤, 원점수 등급컷이 비어있는 과목에 한해
+ * suneungcalc.com 자료로 표준점수 -> 원점수를 역산해서 채운다.
+ * EBSi에서 이미 원점수를 받아온 과목은 건드리지 않는다.
+ * @returns {Promise<{filled:number, reason:string|null}>}
+ */
+async function fillMissingRawFromSuneungCalc(gradeVal, year, examText) {
+  const type = detectSncTypeFromExamText(examText, gradeVal);
+  const month = extractMonthFromExamText(examText);
+  if (!type || !month) {
+    return { filled: 0, reason: '시험 유형/월 정보를 확인할 수 없어 건너뜀' };
+  }
+
+  // EBSi의 "연도"는 시행(달력) 연도. 학평(1st/2nd/3rd)은 suneungcalc도 시행 연도를 그대로 쓰지만,
+  // 평가원 시험(sat: 6·9·11월 모의평가·수능)은 suneungcalc가 "학년도" 표기를 쓰므로 시행 연도+1이 된다.
+  // (추측이 아니라 확정된 규칙 — EBSi에서 이미 고른 시험을 그대로 옮기는 것)
+  const yearNum = Number(year);
+  if (isNaN(yearNum)) {
+    return { filled: 0, reason: '연도 정보를 확인할 수 없어 건너뜀' };
+  }
+  const sncYear = (type === 'sat') ? String(yearNum + 1) : year;
+
+  let sncData;
+  try {
+    sncData = await window.loadSuneungCalcData();
+  } catch (e) {
+    return { filled: 0, reason: 'suneungcalc.com 자료를 불러오지 못함 (' + e.message + ')' };
+  }
+
+  const matchedKey = `${sncYear}${month}${type}`;
+  const examObj = sncData[matchedKey];
+  if (!examObj) {
+    return { filled: 0, reason: `suneungcalc.com에 자료가 없음 (${matchedKey})` };
+  }
+
+  let filled = 0;
+
+  // 한 과목(std 배열, raw 배열, 만점, suneungcalc 후보 이름)에 대해 비어있는 원점수를 채우는 공통 로직
+  function fillSubject(stdArr, rawArrRef, candidates, maxRaw) {
+    if (!Array.isArray(stdArr) || cutsAreUsable(rawArrRef.get())) return; // 원점수가 이미 있으면 건드리지 않음
+    if (!stdArr.some(v => Number(v) > 0)) return; // 표준점수 자체가 없으면 역산 불가
+    const subjectKey = suneungFindSubjectKey(examObj, candidates);
+    if (!subjectKey) return;
+    const newRaw = [];
+    let any = false;
+    for (let i = 0; i < 8; i++) {
+      const raw = suneungReverseRaw(examObj[subjectKey], stdArr[i], maxRaw);
+      if (raw !== null) { newRaw[i] = raw; any = true; } else { newRaw[i] = 0; }
+    }
+    if (any) { rawArrRef.set(newRaw); filled++; }
+  }
+
+  if (gradeVal === 'D100') {
+    const cut = gradeCuts.target;
+    fillSubject(cut.std.korean, { get: () => cut.raw.korean, set: v => { cut.raw.korean = v; } }, ['국어'], 100);
+    fillSubject(cut.std.math, { get: () => cut.raw.math, set: v => { cut.raw.math = v; } }, ['수학'], 100);
+    fillSubject(cut.std.social, { get: () => cut.raw.social, set: v => { cut.raw.social = v; } }, ['사회', '통합사회'], 50);
+    fillSubject(cut.std.science, { get: () => cut.raw.science, set: v => { cut.raw.science = v; } }, ['과학', '통합과학'], 50);
+  } else if (gradeVal === 'D200') {
+    ensureGradeCutDetails();
+    const d2 = gradeCuts.details['2'];
+    fillSubject(d2.basic.std.korean, { get: () => d2.basic.raw.korean, set: v => { d2.basic.raw.korean = v; } }, ['국어'], 100);
+    fillSubject(d2.basic.std.math, { get: () => d2.basic.raw.math, set: v => { d2.basic.raw.math = v; } }, ['수학'], 100);
+    Object.keys(d2.social || {}).forEach(slug => {
+      const kor = SNC_SLUG_TO_KOREAN[slug];
+      if (!kor) return;
+      const entry = d2.social[slug];
+      fillSubject(entry.std, { get: () => entry.raw, set: v => { entry.raw = v; } }, [kor], 50);
+    });
+    Object.keys(d2.science || {}).forEach(slug => {
+      const kor = SNC_SLUG_TO_KOREAN[slug];
+      if (!kor) return;
+      const entry = d2.science[slug];
+      fillSubject(entry.std, { get: () => entry.raw, set: v => { entry.raw = v; } }, [kor], 50);
+    });
+  } else if (gradeVal === 'D300') {
+    ensureGradeCutDetails();
+    const d3 = gradeCuts.details['3'];
+    // 3학년 국어/수학 선택과목(화작/언매, 확통/미적/기하)은 통합 표준점수 산출 공식이 별도라
+    // 단순 역산이 불가능하므로 지원하지 않는다. 영어/한국사도 절대평가라 자료가 없다.
+    Object.keys(d3.social || {}).forEach(slug => {
+      const kor = SNC_SLUG_TO_KOREAN[slug];
+      if (!kor) return;
+      const entry = d3.social[slug];
+      fillSubject(entry.std, { get: () => entry.raw, set: v => { entry.raw = v; } }, [kor], 50);
+    });
+    Object.keys(d3.science || {}).forEach(slug => {
+      const kor = SNC_SLUG_TO_KOREAN[slug];
+      if (!kor) return;
+      const entry = d3.science[slug];
+      fillSubject(entry.std, { get: () => entry.raw, set: v => { entry.raw = v; } }, [kor], 50);
+    });
+  }
+
+  return { filled, reason: filled ? null : `일치하는 표준점수를 찾지 못함 (${matchedKey})` };
+}
+
+// 등급컷 표의 헤더 행(tr) 셀 텍스트를 읽어 원점수/표준점수 열 위치를 찾는다.
+// 실채점 결과 발표 이후 EBSi에서 원점수 열이 삭제되는 경우가 있어,
+// 고정 인덱스(2/3) 대신 헤더 텍스트로 열을 찾아야 안전하다.
+// @returns {{rawIdx:number, stdIdx:number}} 못 찾으면 -1
+function findRawStdColIdx(headerTr) {
+  const cells = Array.from(headerTr?.children || []).map(c => (c.innerText || c.textContent || '').trim());
+  let rawIdx = cells.findIndex(t => t.includes('원점수'));
+  let stdIdx = cells.findIndex(t => t.includes('표준점수'));
+  if (rawIdx === -1 && stdIdx === -1) { rawIdx = 2; stdIdx = 3; } // 폴백(과거 레이아웃)
+  return { rawIdx, stdIdx };
+}
+
 // ------------------- EBSi 등급컷 HTML 파싱 및 추출 -------------------
 /**
  * EBSi 웹사이트에서 복사한 HTML에서 등급컷 데이터를 추출하는 함수
@@ -688,28 +1214,42 @@ window.parseEBSiGradeCutHtml = function (html, tab = 'target') {
   });
 
   // HTML에서 과목별 등급컷 테이블 파싱
+  let missingRawSubjects = [];
   doc.querySelectorAll('.col_6').forEach(col => {
     const subjKor = col.querySelector('h3')?.textContent.trim();
     const subj = subjMap[subjKor];
     if (!subj) return;
 
     const trs = col.querySelectorAll('tbody tr');
-    let rawArr = [], stdArr = [];
+    // 헤더 행(등급컷 표의 첫 번째 tr)의 셀 텍스트로 원점수/표준점수 열 위치를 찾는다.
+    // 실채점 결과 발표 이후에는 EBSi에서 원점수 열 자체가 삭제되는 경우가 있어,
+    // 고정 인덱스(2/3) 대신 헤더 텍스트 기반으로 열을 찾아야 안전하다.
+    const headerCells = Array.from(trs[0]?.querySelectorAll('td,th') || []).map(c => (c.textContent || '').trim());
+    let rawIdx = headerCells.findIndex(t => t.includes('원점수'));
+    let stdIdx = headerCells.findIndex(t => t.includes('표준점수'));
+    // 헤더를 못 찾은 경우 과거 레이아웃(2/3열)로 폴백
+    if (rawIdx === -1 && stdIdx === -1) { rawIdx = 2; stdIdx = 3; }
 
-    // 1~8등급 등급컷 추출
+    let rawArr = [], stdArr = [];
     for (let i = 1; i <= 8; i++) {
       const tr = trs[i];
       if (!tr) continue;
       const tds = tr.querySelectorAll('td');
-      rawArr.push(Number(tds[2]?.textContent.trim() || 0)); // 원점수
-      stdArr.push(Number(tds[3]?.textContent.trim() || 0)); // 표준점수
+      if (rawIdx !== -1) rawArr.push(Number(tds[rawIdx]?.textContent.trim() || 0));
+      if (stdIdx !== -1) stdArr.push(Number(tds[stdIdx]?.textContent.trim() || 0));
     }
 
+    // 원점수 열을 찾지 못했다면(=EBSi에서 삭제됨) 잘못된 값을 채우지 않고 비워둔다.
+    if (rawIdx === -1) { rawArr = []; missingRawSubjects.push(subjKor); }
     gradeCuts[tab].raw[subj] = rawArr;
     gradeCuts[tab].std[subj] = stdArr;
   });
 
-  showMessage('붙여넣은 등급컷에서 원점수/표준점수 등급컷을 모두 추출했습니다.');
+  if (missingRawSubjects.length) {
+    showMessage(`붙여넣은 등급컷에서 표준점수 등급컷을 추출했습니다.\n(${missingRawSubjects.join(', ')}은(는) 원점수 등급컷이 제공되지 않아 표준점수만 반영되었습니다. 분석은 표준점수 기준으로 진행됩니다.)`);
+  } else {
+    showMessage('붙여넣은 등급컷에서 원점수/표준점수 등급컷을 모두 추출했습니다.');
+  }
   initCutTable();
 };
 
@@ -743,8 +1283,7 @@ window.fetchEBSiCuts = async function () {
     updateEbsiUI(examData);
 
   } catch (e) {
-    showMessage('EBSi 시험 목록 불러오기 중 오류가 발생했습니다.' + e.message);
-    console.error(e);
+    showEbsiError('EBSi 시험 목록 불러오기', e);
   } finally {
     hideLoading();
   }
@@ -882,13 +1421,19 @@ function updateExamOptions() {
 async function loadEbsiGradeCuts() {
   const year = document.getElementById('ebsiYear').value;
   const grade = document.getElementById('ebsiGrade').value;
-  const irecord = document.getElementById('ebsiExam').value;
+  const examSelectEl = document.getElementById('ebsiExam');
+  const irecord = examSelectEl.value;
+  const examText = examSelectEl.options[examSelectEl.selectedIndex]?.text || '';
 
   // 필수 선택 항목 검증
   if (!year || !grade || !irecord) {
     showMessage('연도, 학년, 시험을 모두 선택하세요.');
     return;
   }
+
+  // 성적 확인 탭에서 학생별 원점수/백분위를 suneungcalc로 추정할 때 재사용할 시험 정보 저장
+  const gmapForExam = { D100: '1', D200: '2', D300: '3' };
+  window.__lastEbsiExam = { gradeVal: gmapForExam[grade] || '', year, examText };
 
   showLoading();
 
@@ -902,12 +1447,21 @@ async function loadEbsiGradeCuts() {
       { subjectId: '140073', ord: 3, key: 'science' }
     ];
   } else if (grade === 'D200') {
-    // 2학년: 국수영한 / 사회(9과목) / 과학(4과목)
-    reqs = [
-      { subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main' },
-      { subjectId: '17029,17037,17038,50613,50615,50616,50617,50618,140109', ord: 2, key: 'g2_social' },
-      { subjectId: '17041,17042,17043,140113', ord: 3, key: 'g2_science' }
-    ];
+    if (isNewTamguSystem('2', year)) {
+      // 2026학년도부터 2학년 탐구가 1학년처럼 통합사회/통합과학 공통과목으로 개편됨
+      reqs = [
+        { subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main' },
+        { subjectId: '140220', ord: 2, key: 'g2_social_new' },
+        { subjectId: '140221', ord: 3, key: 'g2_science_new' }
+      ];
+    } else {
+      // 2026학년도 이전: 사회(9과목 선택) / 과학(4과목 선택)
+      reqs = [
+        { subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main' },
+        { subjectId: '17029,17037,17038,50613,50615,50616,50617,50618,140109', ord: 2, key: 'g2_social' },
+        { subjectId: '17041,17042,17043,140113', ord: 3, key: 'g2_science' }
+      ];
+    }
   } else if (grade === 'D300') {
     // 3학년: 국수영한 / 사회 / 과학 (제공 subjectId)
     reqs = [
@@ -924,10 +1478,31 @@ async function loadEbsiGradeCuts() {
 
   let cuts = { korean: [], math: [], english: [], history: [], social: [], science: [] };
   let stds = { korean: [], math: [], english: [], history: [], social: [], science: [] };
+  const g2NewTamguFound = { social: false, science: false }; // 2학년 통합사회/통합과학 자동 조회 성공 여부
+
+  // 진행 상황 모달 표시 (EBSi 요청 단계들. 원점수 자동완성 단계는 필요할 때만 나중에 추가됨)
+  const EBSI_STEP_LABELS = {
+    main: '국어·수학·영어·한국사 등급컷 불러오는 중',
+    social: '사회탐구 등급컷 불러오는 중',
+    science: '과학탐구 등급컷 불러오는 중',
+    g2_main: '국어·수학·영어·한국사 등급컷 불러오는 중',
+    g2_social: '사회탐구 등급컷 불러오는 중',
+    g2_science: '과학탐구 등급컷 불러오는 중',
+    g2_social_new: '통합사회 등급컷 불러오는 중',
+    g2_science_new: '통합과학 등급컷 불러오는 중',
+    g3_main: '국어·수학·영어·한국사 등급컷 불러오는 중',
+    g3_social: '사회탐구 등급컷 불러오는 중',
+    g3_science: '과학탐구 등급컷 불러오는 중'
+  };
+  hideLoading(); // 범용 로딩 스피너 대신 단계별 진행 모달을 보여준다
+  showEbsiProgress(
+    reqs.map(r => ({ key: r.key, label: EBSI_STEP_LABELS[r.key] || `${r.key} 등급컷 불러오는 중` }))
+  );
 
   try {
     // 과목별로 등급컷 데이터 요청
     for (const req of reqs) {
+      setEbsiStepStatus(req.key, 'loading');
       const form = new URLSearchParams();
       form.append('subjectId', req.subjectId);
       form.append('irecord', irecord);
@@ -949,24 +1524,28 @@ async function loadEbsiGradeCuts() {
         const col6s = temp.querySelectorAll('.col_6');
         ['korean', 'math', 'english', 'history'].forEach((subj, idx) => {
           const trs = col6s[idx]?.querySelectorAll('tbody tr');
+          const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           cuts[subj] = [];
           stds[subj] = [];
           for (let i = 1; i <= 8; i++) {
-            cuts[subj][i - 1] = Number(trs?.[i]?.children[2]?.innerText || 0);
-            stds[subj][i - 1] = Number(trs?.[i]?.children[3]?.innerText || 0);
+            if (rawIdx !== -1) cuts[subj][i - 1] = Number(trs?.[i]?.children[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) stds[subj][i - 1] = Number(trs?.[i]?.children[stdIdx]?.innerText || 0);
           }
+          if (rawIdx === -1) cuts[subj] = []; // EBSi에서 원점수 열이 삭제된 경우 비워둠(표준점수로 대체 분석)
         });
       }
       // 탐구 과목 처리
       else if (req.key === 'social' || req.key === 'science') {
         const col6 = temp.querySelector('.col_6');
         const trs = col6?.querySelectorAll('tbody tr');
+        const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
         cuts[req.key] = [];
         stds[req.key] = [];
         for (let i = 1; i <= 8; i++) {
-          cuts[req.key][i - 1] = Number(trs?.[i]?.children[2]?.innerText || 0);
-          stds[req.key][i - 1] = Number(trs?.[i]?.children[3]?.innerText || 0);
+          if (rawIdx !== -1) cuts[req.key][i - 1] = Number(trs?.[i]?.children[rawIdx]?.innerText || 0);
+          if (stdIdx !== -1) stds[req.key][i - 1] = Number(trs?.[i]?.children[stdIdx]?.innerText || 0);
         }
+        if (rawIdx === -1) cuts[req.key] = [];
       }
       // 3학년: 국/수/영/한 (특수 테이블)
       else if (req.key === 'g3_main') {
@@ -993,8 +1572,10 @@ async function loadEbsiGradeCuts() {
             });
             d3.kor['kor_speaking'] = d3.kor['kor_speaking'] || { raw: [], std: [] };
             d3.kor['kor_language_media'] = d3.kor['kor_language_media'] || { raw: [], std: [] };
-            d3.kor['kor_speaking'].raw = raw1.map(v => isNaN(v) ? 0 : v);
-            d3.kor['kor_language_media'].raw = raw2.map(v => isNaN(v) ? 0 : v);
+            // 실채점 발표 이후에는 EBSi가 화법과작문/언어와매체 각각의 원점수를 "-"로 표시하고
+            // 표준점수만 제공한다. 이 경우 0으로 채우면 "원점수 0점"처럼 보여 오해를 부르므로 비워둔다.
+            d3.kor['kor_speaking'].raw = raw1.map(v => isNaN(v) ? undefined : v);
+            d3.kor['kor_language_media'].raw = raw2.map(v => isNaN(v) ? undefined : v);
             d3.korCombined.std = std.map(v => isNaN(v) ? 0 : v);
           } else if (nameKor === '수학') {
             const trs = col.querySelectorAll('table.math_table tbody tr');
@@ -1015,9 +1596,11 @@ async function loadEbsiGradeCuts() {
             d3.math['math_probability'] = d3.math['math_probability'] || { raw: [], std: [] };
             d3.math['math_calculus'] = d3.math['math_calculus'] || { raw: [], std: [] };
             d3.math['math_geometry'] = d3.math['math_geometry'] || { raw: [], std: [] };
-            d3.math['math_probability'].raw = rp.map(v => isNaN(v) ? 0 : v);
-            d3.math['math_calculus'].raw = rc.map(v => isNaN(v) ? 0 : v);
-            d3.math['math_geometry'].raw = rg.map(v => isNaN(v) ? 0 : v);
+            // 실채점 발표 이후에는 EBSi가 확통/미적분/기하 각각의 원점수를 "-"로 표시하고
+            // 표준점수만 제공한다. 0으로 채우면 오해를 부르므로 비워둔다.
+            d3.math['math_probability'].raw = rp.map(v => isNaN(v) ? undefined : v);
+            d3.math['math_calculus'].raw = rc.map(v => isNaN(v) ? undefined : v);
+            d3.math['math_geometry'].raw = rg.map(v => isNaN(v) ? undefined : v);
             d3.mathCombined.std = std.map(v => isNaN(v) ? 0 : v);
           } else if (nameKor === '영어' || nameKor === '한국사') {
             const slug = subjectSlug(nameKor);
@@ -1050,6 +1633,7 @@ async function loadEbsiGradeCuts() {
           const slug = subjectSlug(nameKor);
           if (!d3.social[slug]) d3.social[slug] = { raw: [], std: [] };
           const trs = col.querySelectorAll('tbody tr');
+          const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           const raw = [], std = [];
           let gradeIdx = 0;
           trs.forEach(tr => {
@@ -1059,10 +1643,10 @@ async function loadEbsiGradeCuts() {
             if (!/^(최고점|[1-8])$/.test(gtxt)) return;
             if (gtxt === '최고점') return;
             gradeIdx++;
-            raw[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
-            std[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
+            if (rawIdx !== -1) raw[gradeIdx - 1] = parseNumberCell(tds[rawIdx]?.innerText);
+            if (stdIdx !== -1) std[gradeIdx - 1] = parseNumberCell(tds[stdIdx]?.innerText);
           });
-          d3.social[slug].raw = fillForwardMissing(raw);
+          d3.social[slug].raw = (rawIdx === -1) ? [] : fillForwardMissing(raw);
           d3.social[slug].std = fillForwardMissing(std);
         });
       }
@@ -1077,6 +1661,7 @@ async function loadEbsiGradeCuts() {
           const slug = subjectSlug(nameKor);
           if (!d3.science[slug]) d3.science[slug] = { raw: [], std: [] };
           const trs = col.querySelectorAll('tbody tr');
+          const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           const raw = [], std = [];
           let gradeIdx = 0;
           trs.forEach(tr => {
@@ -1086,10 +1671,10 @@ async function loadEbsiGradeCuts() {
             if (!/^(최고점|[1-8])$/.test(gtxt)) return;
             if (gtxt === '최고점') return;
             gradeIdx++;
-            raw[gradeIdx - 1] = parseNumberCell(tds[2]?.innerText);
-            std[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
+            if (rawIdx !== -1) raw[gradeIdx - 1] = parseNumberCell(tds[rawIdx]?.innerText);
+            if (stdIdx !== -1) std[gradeIdx - 1] = parseNumberCell(tds[stdIdx]?.innerText);
           });
-          d3.science[slug].raw = fillForwardMissing(raw);
+          d3.science[slug].raw = (rawIdx === -1) ? [] : fillForwardMissing(raw);
           d3.science[slug].std = fillForwardMissing(std);
         });
       }
@@ -1107,10 +1692,12 @@ async function loadEbsiGradeCuts() {
           if (!d2.basic.raw[slug]) d2.basic.raw[slug] = [];
           if (!d2.basic.std[slug]) d2.basic.std[slug] = [];
           const trs = col.querySelectorAll('tbody tr');
+          const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           for (let i = 1; i <= 8; i++) {
-            d2.basic.raw[slug][i - 1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
-            d2.basic.std[slug][i - 1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+            if (rawIdx !== -1) d2.basic.raw[slug][i - 1] = Number(trs?.[i]?.children?.[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) d2.basic.std[slug][i - 1] = Number(trs?.[i]?.children?.[stdIdx]?.innerText || 0);
           }
+          if (rawIdx === -1) d2.basic.raw[slug] = [];
         });
       }
       // 2학년: 사회 9과목 (g2_social)
@@ -1124,10 +1711,12 @@ async function loadEbsiGradeCuts() {
           const slug = subjectSlug(nameKor);
           if (!d2.social[slug]) d2.social[slug] = { raw: [], std: [] };
           const trs = col.querySelectorAll('tbody tr');
+          const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           for (let i = 1; i <= 8; i++) {
-            d2.social[slug].raw[i - 1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
-            d2.social[slug].std[i - 1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+            if (rawIdx !== -1) d2.social[slug].raw[i - 1] = Number(trs?.[i]?.children?.[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) d2.social[slug].std[i - 1] = Number(trs?.[i]?.children?.[stdIdx]?.innerText || 0);
           }
+          if (rawIdx === -1) d2.social[slug].raw = [];
         });
       }
       // 2학년: 과학 4과목 (g2_science)
@@ -1141,11 +1730,44 @@ async function loadEbsiGradeCuts() {
           const slug = subjectSlug(nameKor);
           if (!d2.science[slug]) d2.science[slug] = { raw: [], std: [] };
           const trs = col.querySelectorAll('tbody tr');
+          const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           for (let i = 1; i <= 8; i++) {
-            d2.science[slug].raw[i - 1] = Number(trs?.[i]?.children?.[2]?.innerText || 0);
-            d2.science[slug].std[i - 1] = Number(trs?.[i]?.children?.[3]?.innerText || 0);
+            if (rawIdx !== -1) d2.science[slug].raw[i - 1] = Number(trs?.[i]?.children?.[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) d2.science[slug].std[i - 1] = Number(trs?.[i]?.children?.[stdIdx]?.innerText || 0);
           }
+          if (rawIdx === -1) d2.science[slug].raw = [];
         });
+      }
+      // 2학년: 통합사회/통합과학 공통과목 (2026학년도~, g2_social_new/g2_science_new)
+      // 이 응답에는 "최고점" 행이 포함되어 있어(구 subjectId 응답과 다름) 등급 텍스트로 행을 걸러야 한다.
+      else if (req.key === 'g2_social_new' || req.key === 'g2_science_new') {
+        ensureGradeCutDetails();
+        const d2 = gradeCuts.details['2'];
+        const targetSubj = (req.key === 'g2_social_new') ? 'social' : 'science';
+        const col6 = temp.querySelector('.col_6');
+        const trs = col6?.querySelectorAll('tbody tr');
+        const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
+        const raw = [], std = [];
+        let gradeIdx = 0;
+        trs?.forEach(tr => {
+          const tds = tr.children;
+          if (!tds || tds.length < 2) return;
+          const gtxt = (tds[0]?.innerText || '').trim();
+          if (!/^(최고점|[1-8])$/.test(gtxt)) return;
+          if (gtxt === '최고점') return;
+          gradeIdx++;
+          if (rawIdx !== -1) raw[gradeIdx - 1] = Number(tds[rawIdx]?.innerText || 0);
+          if (stdIdx !== -1) std[gradeIdx - 1] = Number(tds[stdIdx]?.innerText || 0);
+        });
+        d2.basic.raw[targetSubj] = (rawIdx === -1) ? [] : raw;
+        d2.basic.std[targetSubj] = std;
+        g2NewTamguFound[targetSubj] = gradeIdx > 0;
+      }
+
+      if (req.key === 'g2_social_new' || req.key === 'g2_science_new') {
+        setEbsiStepStatus(req.key, g2NewTamguFound[req.key === 'g2_social_new' ? 'social' : 'science'] ? 'done' : 'skip', g2NewTamguFound[req.key === 'g2_social_new' ? 'social' : 'science'] ? null : '자동 조회 결과 없음 — 직접 입력해주세요');
+      } else {
+        setEbsiStepStatus(req.key, 'done');
       }
     }
 
@@ -1156,20 +1778,58 @@ async function loadEbsiGradeCuts() {
         cut.raw[subj] = cuts[subj] || [];
         cut.std[subj] = stds[subj] || [];
       });
+      cut.exploreBySubject = null;
       cut.year = year;
     } else if (grade === 'D200') {
       // 이미 루프 내에서 details['2']에 저장됨
       cut.year = year;
+      gradeCuts.details['2'].year = year;
+      // 분석 엔진이 참조하는 gradeCuts.target에도 반영 (신·구 교육과정 모두)
+      syncDetailsToTarget('2', year);
+    } else if (grade === 'D300') {
+      gradeCuts.details['3'].year = year;
+      syncDetailsToTarget('3', year);
+    }
+
+    // 원점수 등급컷이 EBSi에 없는 과목(실채점 이후 삭제된 경우 등)이 있을 때만
+    // suneungcalc.com 자료로 채워보는 단계를 진행 모달에 추가해서 실행한다
+    let sncResult = { filled: 0, reason: null };
+    if (needsSuneungFill(grade)) {
+      addEbsiProgressStep('suneung', '원점수 등급컷을 찾아보는 중');
+      setEbsiStepStatus('suneung', 'loading');
+      try {
+        sncResult = await fillMissingRawFromSuneungCalc(grade, year, examText);
+      } catch (e) {
+        sncResult = { filled: 0, reason: '확인 중 오류: ' + e.message };
+      }
+      if (sncResult.filled > 0) {
+        setEbsiStepStatus('suneung', 'done', `원점수 ${sncResult.filled}개 과목 채움`);
+      } else {
+        setEbsiStepStatus('suneung', 'skip', sncResult.reason || '해당 없음');
+      }
+    }
+
+    // 업로드된 학생들의 원점수/백분위도 비어있으면 같은 시험 자료로 추정해서 채워둔다.
+    // (성적 확인뿐 아니라 성적 분석의 통계·차트도 이 값을 그대로 참조하게 된다)
+    if (parsedData && parsedData.length && typeof estimateStudentsRawScores === 'function') {
+      try { await estimateStudentsRawScores(parsedData); } catch (e) { /* 추정 실패는 무시 */ }
     }
 
     // 등급컷 테이블 업데이트
     initCutTable();
     // 자동 적용 (silent 모드 — 별도 팝업 없이)
     applyCut(true);
-    showMessage(`EBSi에서 등급컷을 불러와 자동 적용했습니다.`);
+
+    // 체크리스트 모달이 이미 단계별로 결과를 보여줬으므로, 완료 후엔 블로킹 팝업 대신
+    // 가벼운 토스트로만 요약을 알린다 (모달 두 개가 연달아 뜨는 것을 방지)
+    const sncMsg = sncResult.filled > 0 ? ` (원점수 등급컷 ${sncResult.filled}개 과목 반영)` : '';
+    setTimeout(() => {
+      hideEbsiProgress();
+      showToast(`EBSi에서 등급컷을 불러와 자동 적용했습니다.${sncMsg}`);
+    }, 500);
   } catch (e) {
-    showMessage('EBSi 등급컷 불러오기 중 오류가 발생했습니다.' + e.message);
-    console.error(e);
+    hideEbsiProgress();
+    showEbsiError('EBSi 등급컷 불러오기', e);
   } finally {
     hideLoading();
   }
@@ -1184,6 +1844,40 @@ async function loadEbsiGradeCuts() {
  * @param {Array} stdCuts - 표준점수 등급컷 배열
  * @returns {Object} 등급별 인원수, 비율, 총인원 정보
  */
+// 등급컷 배열이 실제로 사용 가능한지(값이 채워져 있는지) 확인
+function cutsAreUsable(cuts) {
+  return Array.isArray(cuts) && cuts.length >= 2 && cuts.some(v => Number(v) > 0);
+}
+
+/**
+ * 한 학생의 특정 과목 등급을 산출한다.
+ * - 점수(scoreField)가 있으면 등급컷과 비교해 등급을 계산
+ * - 점수가 없지만(예: 실채점 이후 원점수 없이 표준점수만 제공되는 "표준점수 기준" 성적표에서
+ *   영어/한국사처럼 등급만 제공되는 경우) 기록된 등급(record.등급)이 있으면 그것을 그대로 사용
+ * @returns {number|null} 1~9등급, 산출 불가(미응시 등)면 null
+ */
+function resolveStudentGrade(record, scoreField, cuts) {
+  if (!record) return null;
+  const rawVal = record[scoreField];
+  const text = (rawVal === undefined || rawVal === null) ? '' : String(rawVal).trim();
+  if (text === '') {
+    // 점수가 없는 경우: 기록된 등급이 있으면 그대로 사용
+    const g = Number(record.등급);
+    if (!isNaN(g) && g >= 1 && g <= 9) return g;
+    return null; // 응시 정보 없음
+  }
+  const score = Number(text);
+  if (isNaN(score)) return null;
+  // 선택과목제 탐구면 학생이 본 과목의 등급컷을 우선 사용
+  const subjectCuts = exploreCutsForRecord(record, scoreField);
+  if (subjectCuts) cuts = subjectCuts;
+  if (!cutsAreUsable(cuts)) return null;
+  for (let i = 0; i < 8; i++) {
+    if (score >= (cuts[i] || 0)) return i + 1;
+  }
+  return 9;
+}
+
 function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
   // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
   if (window.uploadedFileExt === 'csv' && (window.csvTargetUseRecorded === true)) {
@@ -1212,32 +1906,21 @@ function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
     else { cuts = rawCuts; scoreField = '원점수'; }
   }
 
-  // 등급컷 데이터 유효성 검사
-  if (!Array.isArray(cuts) || cuts.length < 2) {
-    return { dist: Array(9).fill(0), ratio: Array(9).fill('0'), total: 0 };
+  // 실채점 이후 원점수 등급컷이 삭제되는 등, 선택된 등급컷이 비어있으면
+  // 사용 가능한 다른 등급컷(원점수↔표준점수)으로 자동 대체
+  if (!cutsAreUsable(cuts)) {
+    const altCuts = (scoreField === '원점수') ? stdCuts : rawCuts;
+    const altField = (scoreField === '원점수') ? '표준점수' : '원점수';
+    if (cutsAreUsable(altCuts)) { cuts = altCuts; scoreField = altField; }
   }
 
   let dist = Array(9).fill(0); // 1~9등급 인원수 배열
   let total = 0; // 총 인원수
 
-  // 각 학생의 점수를 등급컷과 비교하여 등급 산출
+  // 각 학생의 점수를 등급컷과 비교하여 등급 산출 (점수가 없고 기록된 등급만 있는 경우 그 등급을 사용)
   parsed.forEach(s => {
-    const rawVal = s?.[subject]?.[scoreField];
-    if (rawVal === undefined || rawVal === null) return; // 점수 없음
-    const text = String(rawVal).trim();
-    if (text === '') return; // 빈 문자열 → 미응시로 간주
-    const score = Number(text);
-    if (isNaN(score)) return;
-
-    let grade = 9; // 기본값: 9등급
-    // 1~8등급 등급컷과 비교 (높은 등급부터)
-    for (let i = 0; i < 8; i++) {
-      if (score >= (cuts[i] || 0)) {
-        grade = i + 1;
-        break;
-      }
-    }
-
+    const grade = resolveStudentGrade(s?.[subject], scoreField, cuts);
+    if (grade === null) return; // 응시 정보 없음
     dist[grade - 1]++; // 해당 등급 인원수 증가
     total++; // 총 인원수 증가
   });
@@ -1308,29 +1991,21 @@ function get12GradeByCut(parsed, subject, rawCuts, stdCuts) {
     else { cuts = rawCuts; scoreField = '원점수'; }
   }
 
-  if (!Array.isArray(cuts) || cuts.length < 2) {
-    return { cnt: 0, ratio: '0', total: 0, sum: '0 / 0' };
+  // 실채점 이후 원점수 등급컷이 삭제되는 등, 선택된 등급컷이 비어있으면
+  // 사용 가능한 다른 등급컷(원점수↔표준점수)으로 자동 대체
+  if (!cutsAreUsable(cuts)) {
+    const altCuts = (scoreField === '원점수') ? stdCuts : rawCuts;
+    const altField = (scoreField === '원점수') ? '표준점수' : '원점수';
+    if (cutsAreUsable(altCuts)) { cuts = altCuts; scoreField = altField; }
   }
 
   let dist = Array(9).fill(0);
   let total = 0;
 
-  // 등급 산출 및 집계
+  // 등급 산출 및 집계 (점수가 없고 기록된 등급만 있는 경우 그 등급을 사용)
   parsed.forEach(s => {
-    const rawVal = s?.[subject]?.[scoreField];
-    if (rawVal === undefined || rawVal === null) return; // 점수 없음
-    const text = String(rawVal).trim();
-    if (text === '') return; // 빈 문자열 → 미응시로 간주
-    const score = Number(text);
-    if (isNaN(score)) return;
-
-    let grade = 9;
-    for (let i = 0; i < 8; i++) {
-      if (score >= (cuts[i] || 0)) {
-        grade = i + 1;
-        break;
-      }
-    }
+    const grade = resolveStudentGrade(s?.[subject], scoreField, cuts);
+    if (grade === null) return; // 응시 정보 없음
     dist[grade - 1]++;
     total++;
   });
@@ -1376,7 +2051,6 @@ function renderOverallStatsTables() {
   const container = document.getElementById('overallStatsTables');
   if (!container) return;
 
-  const scoreTypes = ['원점수', '표준점수', '백분위'];
   const subjects = ['국어', '수학'];
   const exploreSubjects = ['사회탐구', '과학탐구'];
   const statsLabels = [
@@ -1385,6 +2059,12 @@ function renderOverallStatsTables() {
     { label: '상위 20% 평균', key: 'top20' },
     { label: '상위 30% 평균', key: 'top30' }
   ];
+
+  // 원점수가 아예 없는 파일(실채점 이후 표준점수만 제공되는 리포트 등)이면
+  // "원점수 기준 통계" 탭 자체가 전부 빈 값("-")만 나오므로 표시하지 않는다.
+  const hasRawScore = parsedData.some(s =>
+    (s.국어?.원점수 && s.국어.원점수 !== '') || (s.수학?.원점수 && s.수학.원점수 !== ''));
+  const scoreTypes = hasRawScore ? ['원점수', '표준점수', '백분위'] : ['표준점수', '백분위'];
 
   let html = '';
 
@@ -1399,7 +2079,7 @@ function renderOverallStatsTables() {
     statsLabels.forEach(stat => {
       html += `<tr><td>${stat.label}</td>`;
       subjects.forEach(subj => {
-        const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
+        const arr = parsedData.map(s => s[subj]?.[scoreType]).filter(v => v !== undefined && v !== null && String(v).trim() !== '').map(Number).filter(n => !isNaN(n));
         arr.sort((a, b) => b - a);
         let value = '-';
         if (arr.length) {
@@ -1437,7 +2117,7 @@ function renderOverallStatsTables() {
     statsLabels.forEach(stat => {
       html += `<tr><td>${stat.label}</td>`;
       exploreSubjects.forEach(subj => {
-        const arr = parsedData.map(s => Number(s[subj]?.[scoreType])).filter(n => !isNaN(n));
+        const arr = parsedData.map(s => s[subj]?.[scoreType]).filter(v => v !== undefined && v !== null && String(v).trim() !== '').map(Number).filter(n => !isNaN(n));
         arr.sort((a, b) => b - a);
         let value = '-';
         if (arr.length) {
@@ -1476,6 +2156,12 @@ function renderOverallStatsTables() {
 window.analyzeAll = async function () {
   showLoading();
 
+  // "성적 확인"을 거치지 않고 바로 "성적 분석"으로 와도 원점수/백분위가 비어있으면
+  // (같은 시험 정보가 있는 경우) 미리 채워둔다 — 불필요하게 다른 탭을 거칠 필요가 없도록.
+  if (parsedData && parsedData.length && typeof estimateStudentsRawScores === 'function') {
+    try { await estimateStudentsRawScores(parsedData); } catch (e) { /* 추정 실패는 무시 */ }
+  }
+
   setTimeout(() => {
     const parsed = parsedData;
     const useStd = (window.uploadedFileExt === 'xlsx');
@@ -1485,11 +2171,17 @@ window.analyzeAll = async function () {
      * @param {Array} parsed - 파싱된 학생 데이터
      * @returns {Array} 과목별 응시자 수와 비율 정보
      */
+    // 원점수 없이 표준점수/등급만 제공되는 성적표(실채점 이후 등)도 응시로 인식하기 위해
+    // 원점수·표준점수·등급 중 하나라도 값이 있으면 응시한 것으로 판단
+    function hasAnyScore(rec) {
+      if (!rec) return false;
+      return (rec.원점수 && rec.원점수 !== '') || (rec.표준점수 && rec.표준점수 !== '') || (rec.등급 && rec.등급 !== '');
+    }
     function getExamStatus(parsed) {
-      const total = parsed.filter(s => s.한국사.원점수 && s.한국사.원점수 !== '').length;
-      const kor = parsed.filter(s => s.국어.원점수 && s.국어.원점수 !== '').length;
-      const math = parsed.filter(s => s.수학.원점수 && s.수학.원점수 !== '').length;
-      const eng = parsed.filter(s => s.영어.원점수 && s.영어.원점수 !== '').length;
+      const total = parsed.filter(s => hasAnyScore(s.한국사)).length;
+      const kor = parsed.filter(s => hasAnyScore(s.국어)).length;
+      const math = parsed.filter(s => hasAnyScore(s.수학)).length;
+      const eng = parsed.filter(s => hasAnyScore(s.영어)).length;
 
       return [
         { name: '한국사', count: total, ratio: '100.00' },
@@ -1666,6 +2358,13 @@ function resetCompareTab() {
   if (showBtn) showBtn.disabled = true;
   const result = document.getElementById('compareResult');
   if (result) result.innerHTML = '';
+
+  // 학년 필터 드롭다운을 지금 시점의 parsedData 기준으로 다시 채운다.
+  // (이 탭 UI는 페이지 로드 시 딱 한 번만 만들어지는데, 그때는 아직 파일이 업로드되기 전이라
+  //  드롭다운이 비어있는 채로 굳어 있었다 — 탭을 열 때마다 매번 새로 채워야 한다)
+  window.compareTargetGrade = '';
+  window.compareCompareGrade = '';
+  if (typeof updateCompareGradeFilters === 'function') updateCompareGradeFilters();
 }
 
 /**
@@ -1709,59 +2408,121 @@ window.handleCompareFile = function (e) {
 
   compareFileName = file.name;
   const ext = file.name.split('.').pop().toLowerCase();
-  try { window.compareUploadedFileExt = ext; } catch (e) { }
-  const reader = new FileReader();
 
-  reader.onload = function (ev) {
-    let rows;
-    if (ext === 'xlsx') {
-      // XLSX 파일 처리
-      const data = new Uint8Array(ev.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-      compareParsedData = parseCompareXlsxRows(rows);
-
-      // 파일 업로드 성공 시 버튼 활성화
-      document.getElementById('showCompareBtn').disabled = false;
-      showMessage(`비교 파일이 업로드되었습니다: ${compareFileName}`);
-    } else if (ext === 'csv' || ext === 'txt') {
-      // CSV 파일 처리 (기존 CSV 파싱 규칙 재사용)
+  if (ext === 'csv' || ext === 'txt') {
+    try { window.compareUploadedFileExt = ext; } catch (e) { }
+    const reader = new FileReader();
+    reader.onload = async function (ev) {
       try {
         const text = ev.target.result;
         const lines = text.trim().split('\n').map(row => row.split(','));
-        rows = lines;
         compareParsedData = parseCsvRows(lines);
+        // 비교 등급컷을 이미 불러와둔 상태라면(보통 등급컷을 먼저 불러오고 파일을 올리는 흐름),
+        // 그 시험 정보로 원점수/백분위를 업로드 즉시 역산해서 채운다.
+        if (window.__lastEbsiCompareExam && typeof estimateStudentsRawScores === 'function') {
+          try { await estimateStudentsRawScores(compareParsedData, window.__lastEbsiCompareExam); } catch (e) { /* 추정 실패는 무시 */ }
+        }
         document.getElementById('showCompareBtn').disabled = false;
-        showMessage(`비교 파일이 업로드되었습니다: ${compareFileName}`);
+        updateCompareGradeFilters();
+        showToast(`비교 파일이 업로드되었습니다: ${compareFileName}`);
       } catch (err) {
         console.error(err);
         compareParsedData = [];
         document.getElementById('showCompareBtn').disabled = true;
         showMessage('CSV 파싱 중 오류가 발생했습니다.');
       }
-    } else if (ext === 'xls') {
-      showMessage(".xls 파일은 한글이 깨질 수 있습니다. Excel에서 '다른 이름으로 저장'을 통해 .xlsx 형식으로 저장하여 업로드를 권장드립니다.");
-      compareParsedData = [];
-      document.getElementById('showCompareBtn').disabled = true;
+    };
+    reader.readAsText(file, 'euc-kr');
+    return;
+  }
+
+  if (ext !== 'xlsx' && ext !== 'xls') {
+    showMessage('지원하지 않는 파일 형식입니다. (.csv, .xlsx, .xls)');
+    compareParsedData = [];
+    document.getElementById('showCompareBtn').disabled = true;
+    return;
+  }
+
+  // xlsx/xls: 실제 바이너리 스프레드시트인지, EUC-KR HTML 기반 성적표(예: 교육청 [표준점수 기준] 리포트)인지
+  // 파일 앞부분 바이트로 판별한다.
+  try { window.compareUploadedFileExt = 'xlsx'; } catch (e) { }
+  const headReader = new FileReader();
+  headReader.onload = function (headEv) {
+    const head = new Uint8Array(headEv.target.result);
+    const isZip = head[0] === 0x50 && head[1] === 0x4B;
+    const isBiff = head[0] === 0xD0 && head[1] === 0xCF && head[2] === 0x11 && head[3] === 0xE0;
+    if (isZip || isBiff) {
+      const reader = new FileReader();
+      reader.onload = async function (ev) {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+          compareParsedData = parseCompareXlsxRows(rows);
+          if (window.__lastEbsiCompareExam && typeof estimateStudentsRawScores === 'function') {
+            try { await estimateStudentsRawScores(compareParsedData, window.__lastEbsiCompareExam); } catch (e) { /* 추정 실패는 무시 */ }
+          }
+          document.getElementById('showCompareBtn').disabled = false;
+          updateCompareGradeFilters();
+          showToast(`비교 파일이 업로드되었습니다: ${compareFileName}`);
+        } catch (err) {
+          console.error(err);
+          compareParsedData = [];
+          document.getElementById('showCompareBtn').disabled = true;
+          showMessage('XLSX 파싱 중 오류가 발생했습니다. ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
     } else {
-      showMessage('지원하지 않는 파일 형식입니다. (.csv, .xlsx)');
-      compareParsedData = [];
-      document.getElementById('showCompareBtn').disabled = true;
+      // EUC-KR HTML 기반 성적표(원점수 없이 표준점수/등급만 제공되는 경우 포함)
+      const reader = new FileReader();
+      reader.onload = async function (ev) {
+        try {
+          const text = ev.target.result;
+          const rows = (typeof parseHtmlTableToRows === 'function') ? parseHtmlTableToRows(text) : [];
+          const rowsData = (typeof parseStdReportRows === 'function') ? parseStdReportRows(rows) : [];
+          if (!rowsData.length) throw new Error('표에서 학생 데이터를 찾지 못했습니다. 파일 형식을 확인해주세요.');
+          compareParsedData = rowsData;
+          if (window.__lastEbsiCompareExam && typeof estimateStudentsRawScores === 'function') {
+            try { await estimateStudentsRawScores(compareParsedData, window.__lastEbsiCompareExam); } catch (e) { /* 추정 실패는 무시 */ }
+          }
+          document.getElementById('showCompareBtn').disabled = false;
+          updateCompareGradeFilters();
+          showToast(`비교 파일이 업로드되었습니다: ${compareFileName} (원점수 없이 표준점수 기준으로 비교)`);
+        } catch (err) {
+          console.error(err);
+          compareParsedData = [];
+          document.getElementById('showCompareBtn').disabled = true;
+          showMessage('성적표 파일 파싱 중 오류가 발생했습니다. ' + err.message);
+        }
+      };
+      reader.readAsText(file, 'euc-kr');
     }
   };
-
-  if (ext === 'xlsx') reader.readAsArrayBuffer(file);
-  else reader.readAsText(file, 'euc-kr');
+  headReader.onerror = function () {
+    showMessage('파일을 읽는 중 오류가 발생했습니다.');
+  };
+  headReader.readAsArrayBuffer(file.slice(0, 8));
 };
 
 /**
  * 비교 분석 결과를 화면에 렌더링하는 함수
  */
-function renderCompareResult() {
+async function renderCompareResult() {
   if (!compareParsedData.length) {
     document.getElementById('compareResult').innerHTML = '<p>비교 파일을 업로드하세요.</p>';
     return;
+  }
+
+  // 대상/비교 데이터 모두 원점수·백분위가 비어있으면 추정해서 채워둔다.
+  // 대상은 window.__lastEbsiExam(등급컷 탭 시험), 비교는 window.__lastEbsiCompareExam(비교 탭 시험)을
+  // 각각 사용한다 — 대상과 비교가 서로 다른 시험(예: 올해 vs 작년)일 수 있기 때문.
+  if (typeof estimateStudentsRawScores === 'function') {
+    try {
+      await estimateStudentsRawScores(parsedData);
+      await estimateStudentsRawScores(compareParsedData, window.__lastEbsiCompareExam);
+    } catch (e) { /* 추정 실패는 무시 */ }
   }
 
   document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${compareFileName}</div>`;
@@ -1774,11 +2535,9 @@ function renderCompareResult() {
 }
 
 // ------------------- EBSi 비교용 등급컷 불러오기 -------------------
-// 비교 분석용 EBSi 등급컷 데이터 저장 변수
-let ebsiCompareCuts = {
-  korean: [], // 국어 등급컷
-  math: []    // 수학 등급컷
-};
+// "비교" 쪽도 등급컷 탭과 똑같이 연도/학년/시험을 골라 EBSi에서 직접 불러온다.
+// (예전엔 1학년 전용 별도 API를 썼는데, 그 API가 stdntGrd=1로 고정돼 있어 2·3학년을
+//  아예 지원하지 못했다. 이제 등급컷 탭과 동일한 시험 목록·요청 방식을 재사용한다)
 
 /**
  * 비교 분석용 EBSi 등급컷 불러오기 UI를 동적으로 생성하는 함수
@@ -1787,160 +2546,187 @@ function renderEbsiCutLoaderUI() {
   const container = document.getElementById('analyzeSection_compare');
   if (!container) return;
 
-  // 기존 UI 요소들 제거
   const prev = document.getElementById('ebsiCutLoader');
   if (prev) prev.remove();
   const prevStatus = document.getElementById('ebsiCutStatus');
   if (prevStatus) prevStatus.remove();
 
-  // 새로운 UI 요소 생성
   const div = document.createElement('div');
   div.id = 'ebsiCutLoader';
   div.className = 'mb-18';
   div.innerHTML = `
     <label>연도:
-      <select id="ebsiYearSelect" class="minw-90"></select>
+      <select id="ebsiCompareYear" class="minw-90" onchange="updateCompareGradeOptions()"><option value="">연도선택</option></select>
     </label>
     <label>학년:
-      <select id="ebsiGradeSelect" disabled class="minw-70">
-        <option value="1" selected>1학년</option>
+      <select id="ebsiCompareGrade" class="minw-70" disabled onchange="updateCompareExamOptions()">
+        <option value="">학년선택</option>
+        <option value="D100">1학년</option>
+        <option value="D200">2학년</option>
+        <option value="D300">3학년</option>
       </select>
     </label>
-    <label>월:
-      <select id="ebsiMonthSelect" class="minw-70"></select>
+    <label>시험:
+      <select id="ebsiCompareExam" class="minw-120" disabled><option value="">시험선택</option></select>
     </label>
-    <button type="button" id="ebsiCutFetchBtn" class="copy-btn ml-8">EBSi 등급컷 불러오기</button>
+    <button type="button" id="ebsiCutFetchBtn" class="copy-btn ml-8">등급컷 불러오기</button>
   `;
-
   container.prepend(div);
 
-  // 상태 표시 div 생성
   const statusDiv = document.createElement('div');
   statusDiv.id = 'ebsiCutStatus';
   statusDiv.className = 'status-text';
   container.insertBefore(statusDiv, div.nextSibling);
 
-  // 초기화 함수들 실행
-  setTimeout(() => {
-    loadEbsiYearList();
-    document.getElementById('ebsiCutFetchBtn').onclick = fetchEbsiCompareCuts;
-  }, 0);
+  // 등급컷 탭에서 이미 시험 목록(window.ebsiExamData)을 불러온 적이 있으면 그걸 재사용하고,
+  // 없으면(등급컷 탭을 아직 안 들렀으면) 새로 불러온다.
+  if (window.ebsiExamData) {
+    populateCompareYearOptions();
+  } else if (typeof fetchEBSiCuts === 'function') {
+    fetchEBSiCuts().then(populateCompareYearOptions);
+  }
+  document.getElementById('ebsiCutFetchBtn').onclick = fetchCompareEbsiCuts;
 }
 
-/**
- * EBSi에서 사용 가능한 연도 목록을 불러오는 함수
- */
-async function loadEbsiYearList() {
-  const sel = document.getElementById('ebsiYearSelect');
-  sel.innerHTML = '<option>로딩중...</option>';
+function populateCompareYearOptions() {
+  const sel = document.getElementById('ebsiCompareYear');
+  if (!sel || !window.ebsiExamData) return;
+  sel.innerHTML = '<option value="">연도선택</option>' +
+    Object.keys(window.ebsiExamData).map(y => `<option value="${y}">${y}년</option>`).join('');
+}
 
-  try {
-    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutYearList.ajax', {
-      method: 'POST'
-    });
-    const data = await res.json();
-    sel.innerHTML = '';
+function updateCompareGradeOptions() {
+  const year = document.getElementById('ebsiCompareYear').value;
+  const gradeSelect = document.getElementById('ebsiCompareGrade');
+  const examSelect = document.getElementById('ebsiCompareExam');
+  if (year && window.ebsiExamData?.[year]) {
+    gradeSelect.disabled = false;
+  } else {
+    gradeSelect.disabled = true;
+    gradeSelect.value = '';
+  }
+  examSelect.innerHTML = '<option value="">시험선택</option>';
+  examSelect.disabled = true;
+}
 
-    // 연도 옵션들 추가
-    data.result.forEach(y => {
-      sel.innerHTML += `<option value="${y.code}">${y.value - 1}</option>`;
-    });
-
-    sel.onchange = loadEbsiMonthList; // 연도 변경 시 월 목록 업데이트
-    loadEbsiMonthList(); // 초기 월 목록 로드
-  } catch (e) {
-    showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다." + e.message);
+function updateCompareExamOptions() {
+  const year = document.getElementById('ebsiCompareYear').value;
+  const grade = document.getElementById('ebsiCompareGrade').value;
+  const examSelect = document.getElementById('ebsiCompareExam');
+  if (year && grade && window.ebsiExamData?.[year]?.[grade]) {
+    const exams = window.ebsiExamData[year][grade];
+    examSelect.innerHTML = '<option value="">시험선택</option>' +
+      exams.map(exam => `<option value="${exam.value}">${exam.text}</option>`).join('');
+    examSelect.disabled = false;
+  } else {
+    examSelect.innerHTML = '<option value="">시험선택</option>';
+    examSelect.disabled = true;
   }
 }
 
 /**
- * 선택된 연도에 해당하는 월 목록을 불러오는 함수
+ * 비교용 EBSi 등급컷(국어·수학 표준점수)을 불러와서 gradeCuts.compare에 저장하는 함수.
+ * 등급컷 탭의 reqs 구성·파싱 로직과 같은 EBSi 엔드포인트를 그대로 사용하되,
+ * 비교 표에 필요한 국어/수학 표준점수만 뽑아서 gradeCuts.compare(대상과 별도 저장소)에 담는다.
  */
-async function loadEbsiMonthList() {
-  const year = document.getElementById('ebsiYearSelect').value;
-  const sel = document.getElementById('ebsiMonthSelect');
-  sel.innerHTML = '<option>로딩중...</option>';
+async function fetchCompareEbsiCuts() {
+  const year = document.getElementById('ebsiCompareYear').value;
+  const grade = document.getElementById('ebsiCompareGrade').value;
+  const examSelectEl = document.getElementById('ebsiCompareExam');
+  const irecord = examSelectEl.value;
+  const examText = examSelectEl.options[examSelectEl.selectedIndex]?.text || '';
+  if (!year || !grade || !irecord) {
+    showMessage('연도, 학년, 시험을 모두 선택하세요.');
+    return;
+  }
+
+  // 비교 학생들의 원점수/백분위 추정(estimateStudentsRawScores)에 쓸 "비교 쪽" 시험 정보를 저장해둔다.
+  // (대상 학생은 window.__lastEbsiExam을 쓰고, 비교 학생은 여기서 저장하는 이 정보를 쓴다 — 서로 다른 시험이므로 구분)
+  const gmapForCompareExam = { D100: '1', D200: '2', D300: '3' };
+  window.__lastEbsiCompareExam = { gradeVal: gmapForCompareExam[grade] || '', year, examText };
+
+  let req;
+  if (grade === 'D100') req = { subjectId: '17012,17014,17020,110001', ord: 1, key: 'main' };
+  else if (grade === 'D200') req = { subjectId: '17022,50612,120013,140111', ord: 1, key: 'g2_main' };
+  else if (grade === 'D300') req = { subjectId: '63004,80003,140117,140119', ord: 1, key: 'g3_main' };
+  else { showMessage('지원하지 않는 학년입니다.'); return; }
+
+  showLoading();
+  const std = { korean: [], math: [] };
 
   try {
-    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutMonthList.ajax', {
+    const form = new URLSearchParams();
+    form.append('subjectId', req.subjectId);
+    form.append('irecord', irecord);
+    form.append('ord', req.ord);
+    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrieveGrdCutList.ajax', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `year=${year}&stdntGrd=1`
-    });
-    const data = await res.json();
-    sel.innerHTML = '';
-
-    // 월 옵션들 추가
-    data.result.forEach(m => {
-      sel.innerHTML += `<option value="${m.code}">${m.value}월</option>`;
-    });
-  } catch (e) {
-    showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다." + e.message);
-  }
-}
-
-/**
- * EBSi 등급컷 HTML에서 국어/수학 등급컷을 파싱하는 함수
- * @param {string} html - EBSi에서 받은 등급컷 HTML
- * @returns {Object} 파싱된 국어/수학 등급컷 데이터
- */
-function parseEbsiCutHtml(html) {
-  const kor = [];
-  const math = [];
-
-  try {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const tables = div.querySelectorAll('.col_6 table');
-
-    // 국어 등급컷 추출
-    if (tables[0]) {
-      const trs = tables[0].querySelectorAll('tbody tr');
-      for (let i = 1; i <= 9; i++) {
-        const row = Array.from(trs).find(tr => tr.children[0].innerText.trim() === String(i));
-        if (row) kor.push(Number(row.children[2].innerText.trim()) || 0);
-      }
-    }
-
-    // 수학 등급컷 추출
-    if (tables[1]) {
-      const trs = tables[1].querySelectorAll('tbody tr');
-      for (let i = 1; i <= 9; i++) {
-        const row = Array.from(trs).find(tr => tr.children[0].innerText.trim() === String(i));
-        if (row) math.push(Number(row.children[2].innerText.trim()) || 0);
-      }
-    }
-  } catch (e) {
-    showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다.\n" + e.message);
-  }
-  return { korean: kor, math: math };
-}
-/**
- * 비교용 EBSi 등급컷을 불러와서 저장하는 함수
- */
-async function fetchEbsiCompareCuts() {
-  const year = document.getElementById('ebsiYearSelect').value;
-  const month = document.getElementById('ebsiMonthSelect').value;
-  const status = document.getElementById('ebsiCutStatus');
-  showLoading();
-
-  try {
-    const res = await fetch('https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutList.ajax', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-      },
-      body: `year=${year}&stdntGrd=1&month=${month}&subjCd=4203,3103,1103,2105`
+      body: form.toString()
     });
     const html = await res.text();
-    const cuts = parseEbsiCutHtml(html);
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    if (req.key === 'main' || req.key === 'g2_main') {
+      // 1·2학년: 국어/수학이 각각 독립된 표준점수 등급컷 표로 나온다
+      const col6s = temp.querySelectorAll('.col_6');
+      ['korean', 'math'].forEach((subj, idx) => {
+        const trs = col6s[idx]?.querySelectorAll('tbody tr');
+        const { stdIdx } = findRawStdColIdx(trs?.[0]);
+        for (let i = 1; i <= 8; i++) {
+          std[subj][i - 1] = (stdIdx !== -1) ? Number(trs?.[i]?.children[stdIdx]?.innerText || 0) : 0;
+        }
+      });
+    } else if (req.key === 'g3_main') {
+      // 3학년: 국어(화작/언매 통합)·수학(확통/미적/기하 통합) 표준점수 표가 별도 구조
+      const blocks = temp.querySelectorAll('.col_6');
+      blocks.forEach(col => {
+        const nameKor = normalizeSubjectName(col.querySelector('h3')?.textContent || '');
+        if (nameKor === '국어') {
+          const trs = col.querySelectorAll('table.kor_table tbody tr');
+          const arr = [];
+          let gradeIdx = 0;
+          trs.forEach(tr => {
+            const tds = tr.children;
+            if (!tds || tds.length < 5) return;
+            const gtxt = (tds[0]?.innerText || '').trim();
+            if (!/^(최고점|[1-8])$/.test(gtxt) || gtxt === '최고점') return;
+            gradeIdx++;
+            arr[gradeIdx - 1] = parseNumberCell(tds[3]?.innerText);
+          });
+          std.korean = arr.map(v => isNaN(v) ? 0 : v);
+        } else if (nameKor === '수학') {
+          const trs = col.querySelectorAll('table.math_table tbody tr');
+          const arr = [];
+          let gradeIdx = 0;
+          trs.forEach(tr => {
+            const tds = tr.children;
+            if (!tds || tds.length < 6) return;
+            const gtxt = (tds[0]?.innerText || '').trim();
+            if (!/^(최고점|[1-8])$/.test(gtxt) || gtxt === '최고점') return;
+            gradeIdx++;
+            arr[gradeIdx - 1] = parseNumberCell(tds[4]?.innerText);
+          });
+          std.math = arr.map(v => isNaN(v) ? 0 : v);
+        }
+      });
+    }
+
     hideLoading();
+    if (std.korean.length < 3 || std.math.length < 3) throw new Error('등급컷 파싱 실패');
 
-    if (cuts.korean.length < 3 || cuts.math.length < 3) throw new Error('등급컷 파싱 실패');
+    gradeCuts.compare.std.korean = std.korean;
+    gradeCuts.compare.std.math = std.math;
+    gradeCuts.compare.year = year;
 
-    ebsiCompareCuts.korean = cuts.korean;
-    ebsiCompareCuts.math = cuts.math;
-    showMessage(`EBSi에서 ${year - 1}년 ${month}월 등급컷을 불러왔습니다.`);
+    // 비교 학생들의 원점수/백분위도 이 시험 정보로 바로 추정해서 채워둔다
+    if (compareParsedData?.length && typeof estimateStudentsRawScores === 'function') {
+      try { await estimateStudentsRawScores(compareParsedData, window.__lastEbsiCompareExam); } catch (e) { /* 추정 실패는 무시 */ }
+    }
+
+    const gradeLabel = { D100: '1', D200: '2', D300: '3' }[grade];
+    showToast(`EBSi에서 ${year}년(${gradeLabel}학년) 등급컷을 불러왔습니다.`);
 
     // 비교 테이블들 업데이트
     renderCompareGradeTable();
@@ -1948,7 +2734,8 @@ async function fetchEbsiCompareCuts() {
     renderGradeDistTable();
     renderGrade12RatioTable();
   } catch (e) {
-    showMessage("EBSi 등급컷 불러오기 중 오류가 발생했습니다." + e.message);
+    hideLoading();
+    showEbsiError('EBSi 비교용 등급컷 불러오기', e);
   }
 }
 
@@ -1975,8 +2762,8 @@ function getTargetYear() {
 function renderCompareGradeTable() {
   const targetKor = gradeCuts.target.std.korean || [];
   const targetMath = gradeCuts.target.std.math || [];
-  const compareKor = ebsiCompareCuts.korean || [];
-  const compareMath = ebsiCompareCuts.math || [];
+  const compareKor = gradeCuts.compare.std.korean || [];
+  const compareMath = gradeCuts.compare.std.math || [];
 
   let html = `<table class="grade-compare-table mt-18">
       <thead>
@@ -2041,7 +2828,7 @@ function renderCompareStatsTables() {
   ];
 
   const targetYear = getTargetYear();
-  const compareYear = document.getElementById('ebsiYearSelect')?.value - 1 || '비교';
+  const compareYear = gradeCuts.compare.year || '비교';
 
   scoreTypes.forEach((scoreType, idx) => {
     let html = `<h3>${scoreType} 기준 통계</h3>`;
@@ -2063,8 +2850,8 @@ function renderCompareStatsTables() {
     statsLabels.forEach(stat => {
       html += `<tr><td>${stat.label}</td>`;
       subjects.forEach(subj => {
-        const v1 = getSubjectStat(parsedData, subj, scoreType, stat.key);
-        const v2 = getSubjectStat(compareParsedData, subj, scoreType, stat.key);
+        const v1 = getSubjectStat(getCompareTargetData(), subj, scoreType, stat.key);
+        const v2 = getSubjectStat(getCompareCompareData(), subj, scoreType, stat.key);
         html += `<td>${v1 ?? '-'}</td><td>${v2 ?? '-'}</td>`;
       });
       html += `</tr>`;
@@ -2113,15 +2900,15 @@ function renderGradeDistTable() {
     html += `<tr><td>${g}등급</td>`;
     subjects.forEach(subj => {
       const subjKey = subjectMap[subj];
-      const base = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      const base = getGradeDistByCut(getCompareTargetData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
       let comp;
       if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-        comp = getGradeDistByRecordedGrade(compareParsedData, subj);
+        comp = getGradeDistByRecordedGrade(getCompareCompareData(), subj);
       } else {
         const prevExt = window.uploadedFileExt;
         window.uploadedFileExt = window.compareUploadedFileExt;
         try {
-          comp = getGradeDistByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+          comp = getGradeDistByCut(getCompareCompareData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
         } finally {
           window.uploadedFileExt = prevExt;
         }
@@ -2166,7 +2953,7 @@ function renderGrade12RatioTable() {
   html += `<tr><td>인원 및 비율 (대상)</td>`;
   subjects.forEach(subj => {
     const subjKey = subjectMap[subj];
-    const v = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+    const v = get12GradeByCut(getCompareTargetData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
     html += `<td>${v.cnt} / ${v.ratio}</td>`;
   });
   html += `</tr>`;
@@ -2175,13 +2962,13 @@ function renderGrade12RatioTable() {
   subjects.forEach(subj => {
     let v;
     if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-      v = get12GradeByRecordedGrade(compareParsedData, subj);
+      v = get12GradeByRecordedGrade(getCompareCompareData(), subj);
     } else {
       const prevExt = window.uploadedFileExt;
       window.uploadedFileExt = window.compareUploadedFileExt;
       try {
         const subjKey = subjectMap[subj];
-        v = get12GradeByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+        v = get12GradeByCut(getCompareCompareData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
       } finally {
         window.uploadedFileExt = prevExt;
       }
@@ -2204,7 +2991,12 @@ function renderGrade12RatioTable() {
  * @returns {string} 계산된 통계값
  */
 function getSubjectStat(data, subject, scoreType, statKey) {
-  const scores = data.map(s => Number(s[subject]?.[scoreType] ?? '')).filter(v => !isNaN(v));
+  // 빈 칸은 제외해야 한다 — Number('')는 0이라서, 값이 없는 학생이 0점으로 평균에 섞여 들어갔었다
+  const scores = data
+    .map(s => s[subject]?.[scoreType])
+    .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
+    .map(Number)
+    .filter(v => !isNaN(v));
   if (!scores.length) return '-';
 
   scores.sort((a, b) => b - a); // 내림차순 정렬
@@ -2271,17 +3063,21 @@ function renderStudentList() {
     const eng = Number(s.영어?.원점수 || 0);
     const soc = Number(s.사회탐구?.표준점수 || 0);
     const sci = Number(s.과학탐구?.표준점수 || 0);
-    const socGrade = getGrade(s.사회탐구?.표준점수, gradeCuts.target.std.social);
-    const sciGrade = getGrade(s.과학탐구?.표준점수, gradeCuts.target.std.science);
+    // resolveStudentGrade: 점수가 없으면 파일에 기록된 등급을 쓴다
+    // (표준점수 기준 리포트는 영어/한국사 원점수 없이 등급만 있어서, 예전엔 영어 등급이 '-'가 되어
+    //  기본 필터(1~9등급)에 전원 걸러져 학생 명단이 텅 비었다)
+    const gradeOf = (rec, field, cuts) => resolveStudentGrade(rec, field, cuts) ?? '-';
+    const socGrade = gradeOf(s.사회탐구, '표준점수', gradeCuts.target.std.social);
+    const sciGrade = gradeOf(s.과학탐구, '표준점수', gradeCuts.target.std.science);
 
     return {
       ...s,
       kor, math, eng, soc, sci,
       sum: kor + math + soc + sci, // 표준점수 합계
       explore: soc + sci, // 탐구 합계
-      korGrade: getGrade(kor, gradeCuts.target.std.korean),
-      mathGrade: getGrade(math, gradeCuts.target.std.math),
-      engGrade: getGrade(eng, gradeCuts.target.raw.english),
+      korGrade: gradeOf(s.국어, '표준점수', gradeCuts.target.std.korean),
+      mathGrade: gradeOf(s.수학, '표준점수', gradeCuts.target.std.math),
+      engGrade: gradeOf(s.영어, '원점수', gradeCuts.target.raw.english),
       exploreGrade: `${socGrade}${sciGrade}`
     };
   });
@@ -2294,7 +3090,8 @@ function renderStudentList() {
 
   // 등급 범위 필터 적용 (영어는 원점수 컷 기준으로 산출된 등급 사용)
   const inRange = (g, min, max) => {
-    if (g === '-' || isNaN(Number(g))) return false;
+    // 등급을 알 수 없는 학생(미응시 등)은 필터를 전체(1~9)로 둔 경우엔 그대로 보여준다
+    if (g === '-' || isNaN(Number(g))) return min === 1 && max === 9;
     const n = Number(g);
     return n >= min && n <= max;
   };
@@ -2426,11 +3223,18 @@ function getGrade(score, cuts) {
 window.initAnalyzeTabs = function () {
   // 탭 버튼 HTML 생성
   let tabHtml = `
-      <div class="mb-18">
-        <button id="analyzeTabBtn_all" class="analyze-tab-btn active" onclick="switchAnalyzeTab('all')">전체 성적 분석</button>
-        <button id="analyzeTabBtn_compare" class="analyze-tab-btn" onclick="switchAnalyzeTab('compare')">비교 성적 분석</button>
-        <button id="analyzeTabBtn_advanced" class="analyze-tab-btn" onclick="switchAnalyzeTab('advanced')">심화 성적 분석</button>
-        <button id="analyzeTabBtn_list" class="analyze-tab-btn" onclick="switchAnalyzeTab('list')">학생 명단</button>
+      <div class="mb-18 analyze-tab-row">
+        <div>
+          <button id="analyzeTabBtn_all" class="analyze-tab-btn active" onclick="switchAnalyzeTab('all')">전체 성적 분석</button>
+          <button id="analyzeTabBtn_compare" class="analyze-tab-btn" onclick="switchAnalyzeTab('compare')">비교 성적 분석</button>
+          <button id="analyzeTabBtn_advanced" class="analyze-tab-btn" onclick="switchAnalyzeTab('advanced')">심화 성적 분석</button>
+          <button id="analyzeTabBtn_list" class="analyze-tab-btn" onclick="switchAnalyzeTab('list')">학생 명단</button>
+        </div>
+        <div class="export-bar">
+          <span class="export-bar-label">파일 내보내기</span>
+          <button class="action-btn-secondary btn-sm" onclick="openExportDialog('hwpx')">결과 보고서 (HWPX)</button>
+          <button class="action-btn-secondary btn-sm" onclick="openExportDialog('daegyo')">대교협 분석자료 (XLSX)</button>
+        </div>
       </div>
     `;
 
@@ -2449,8 +3253,17 @@ window.initAnalyzeTabs = function () {
   document.getElementById('analyzeSection_compare').innerHTML = `
       <input type="file" id="compareUploadInput" accept=".csv,.xlsx,.xls" onchange="handleCompareFile(event)" />
       <button id="showCompareBtn" class="copy-btn" onclick="renderCompareResult()" disabled>비교 결과 보기</button>
+      <div class="mt-10">
+        <label>대상 학년:
+          <select id="compareTargetGradeSel" class="minw-70" onchange="onCompareGradeFilterChange()"><option value="">전체</option></select>
+        </label>
+        <label class="ml-8">비교 학년:
+          <select id="compareCompareGradeSel" class="minw-70" onchange="onCompareGradeFilterChange()"><option value="">전체</option></select>
+        </label>
+      </div>
       <div id="compareResult" class="mt-18"></div>
     `;
+  updateCompareGradeFilters();
 
   // 심화 성적 분석 탭 UI 동적 생성
   document.getElementById('analyzeSection_advanced').innerHTML = `
@@ -2611,12 +3424,12 @@ function openComparisonChartModal() {
       cv.width = 360; cv.height = 260;
       div.appendChild(cv);
       grid1.appendChild(div);
-      const targetData = getGradeDistByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+      const targetData = getGradeDistByCut(getCompareTargetData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
       let compareData;
       if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-        compareData = getGradeDistByRecordedGrade(compareParsedData, subj);
+        compareData = getGradeDistByRecordedGrade(getCompareCompareData(), subj);
       } else {
-        compareData = getGradeDistByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+        compareData = getGradeDistByCut(getCompareCompareData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
       }
       window.analysisChart.createComparisonBarChart(cv.id, targetData, compareData, subj);
     });
@@ -2642,7 +3455,7 @@ function openComparisonChartModal() {
       cv.width = 360; cv.height = 260;
       div.appendChild(cv);
       grid2.appendChild(div);
-      window.analysisChart.createStdScoreComparisonChart(cv.id, parsedData, compareParsedData, subj);
+      window.analysisChart.createStdScoreComparisonChart(cv.id, getCompareTargetData(), getCompareCompareData(), subj);
     });
   });
 }

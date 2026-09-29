@@ -7,7 +7,7 @@ class AnalysisChart {
   // a) 점수 분포 그래프 (히스토그램 + 기준선)
   createScoreDistribution(containerId, data, subject, scoreType) {
     const ctx = document.getElementById(containerId).getContext('2d');
-    const scores = data.map(s => Number(s[subject]?.[scoreType])).filter(n => !isNaN(n));
+    const scores = data.map(s => toScore(s[subject]?.[scoreType])).filter(n => !isNaN(n));
     if (!scores.length) return;
     scores.sort((a, b) => a - b);
     const min = scores[0];
@@ -152,7 +152,7 @@ AnalysisChart.prototype.createCdfChart = function (containerId, data, subject, s
   const ctx = document.getElementById(containerId)?.getContext('2d');
   if (!ctx) return;
 
-  const scores = data.map(s => Number(s[subject]?.[scoreType])).filter(n => !isNaN(n)).sort((a, b) => a - b);
+  const scores = data.map(s => toScore(s[subject]?.[scoreType])).filter(n => !isNaN(n)).sort((a, b) => a - b);
   if (!scores.length) return;
   const n = scores.length;
 
@@ -212,7 +212,7 @@ AnalysisChart.prototype.createStdScoreComparisonChart = function (containerId, t
   const ctx = document.getElementById(containerId)?.getContext('2d');
   if (!ctx) return;
 
-  const getScores = (data) => data.map(s => Number(s[subject]?.표준점수 ?? NaN)).filter(v => !isNaN(v));
+  const getScores = (data) => data.map(s => toScore(s[subject]?.표준점수)).filter(v => !isNaN(v));
   const targetScores = getScores(targetData);
   const compareScores = getScores(compareData);
 

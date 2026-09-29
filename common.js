@@ -1,8 +1,9 @@
 // ------------------- 팝업/로딩/네비/전역 데이터 -------------------
 function showSection(id) {
-    if (!checkAccessPermission(id)) {
-        return; // 접근 차단
-    }
+    // 예전엔 준비가 안 됐으면 화면 전환 자체를 막고 블로킹 팝업을 띄웠는데,
+    // 그러면 섹션 안에 이미 준비된 안내 문구(emptyGuide)가 평생 보일 일이 없었다.
+    // 이제는 그냥 화면을 보여주고, 안내 문구 표시는 updateStepIndicator()에 맡긴다.
+    const ready = checkAccessPermission(id);
 
     document.querySelectorAll('section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(id).classList.add('active');
@@ -11,23 +12,28 @@ function showSection(id) {
     document.querySelectorAll('nav button')[idx].classList.add('active');
     if (id === 'cut' && typeof initCutTable === 'function') initCutTable();
     if (id === 'cut' && typeof fetchEBSiCuts === 'function') fetchEBSiCuts();
-    if (id === 'view' && typeof updateClassDropdown === 'function') updateClassDropdown();
+    // 아직 준비가 안 됐으면(안내 문구만 보여줄 차례) 조회/분석 콘텐츠를 비워서
+    // 의미 없는 빈 표 대신 안내 문구만 깔끔하게 보이게 한다.
+    if (id === 'view') {
+      if (!ready) {
+        const vc = document.getElementById('viewContent');
+        if (vc) vc.innerHTML = '';
+      }
+      // 학년/반 목록은 등급컷 준비 여부와 상관없이 업로드한 파일 기준으로 채운다
+      // (예전엔 등급컷이 준비 안 되면 HTML 기본값 "1학년"이 그대로 남아 있었다)
+      if (parsedData && parsedData.length && typeof updateClassDropdown === 'function') {
+        updateClassDropdown();
+      }
+    }
     updateStepIndicator();
   }
 
+  // 조회/분석에 필요한 게 다 준비됐는지 확인만 한다 (더 이상 화면 전환을 막지 않음)
   function checkAccessPermission(section) {
     if (section === 'view' || section === 'analyze') {
-      // 파일 업로드 체크
-      if (!parsedData || parsedData.length === 0) {
-        showMessage('성적 입력 파일을 업로드해주세요!\n아직 분석을 할 수 없습니다.');
-        return false;
-      }
-      // 등급컷 등록 체크
+      if (!parsedData || parsedData.length === 0) return false;
       const hasGradeCuts = gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
-      if (!hasGradeCuts) {
-        showMessage('등급컷을 입력해주세요!\n아직 분석을 할 수 없습니다.');
-        return false;
-      }
+      if (!hasGradeCuts) return false;
     }
     return true;
   }
@@ -46,6 +52,25 @@ function showSection(id) {
   }
   function hideLoading() {
     document.getElementById('loadingPopup').style.display = 'none';
+  }
+
+  // 점수 문자열을 숫자로 바꾸되, 빈 칸('')은 0이 아니라 "값 없음"(NaN)으로 취급한다.
+  // (Number('')는 0이라서, 그냥 Number()를 쓰면 값이 없는 학생이 0점으로 통계·차트에 섞인다)
+  function toScore(v) {
+    if (v === undefined || v === null || String(v).trim() === '') return NaN;
+    return Number(v);
+  }
+
+  // 클릭해서 닫을 필요 없는 가벼운 성공/안내 알림 (업로드 성공 등). 확인이 꼭 필요한
+  // 경고/오류는 계속 showMessage()의 블로킹 팝업을 쓴다.
+  let _toastTimer = null;
+  function showToast(message, type) {
+    const toast = document.getElementById('appToast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = 'alert-toast show' + (type ? ' alert-' + type : ' alert-success');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2800);
   }
 
   // ------------------- 업로드 UX: 드래그앤드랍/최근 파일 -------------------

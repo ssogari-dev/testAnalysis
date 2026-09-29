@@ -8,7 +8,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
   <meta name="googlebot" content="noindex, nofollow">
   <meta name="bingbot" content="noindex, nofollow">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -92,6 +92,13 @@
       <p>로딩 중...</p>
     </div>
   </div>
+  <!-- EBSi 등급컷 + 원점수(suneungcalc) 자동완성 진행 상황 모달 -->
+  <div id="ebsiProgressModal" class="modal-card">
+    <h3>등급컷 불러오는 중</h3>
+    <ul id="ebsiProgressList" class="ebsi-progress-list"></ul>
+  </div>
+  <!-- 가벼운 성공/안내 토스트 (확인 클릭이 필요 없는 알림용) -->
+  <div id="appToast" class="alert-toast" role="status" aria-live="polite"></div>
   <header class="main-header">
     <div class="header-content">
       <h1>전국연합학력평가<br>성적 분석 / 비교</h1>
@@ -146,6 +153,7 @@
       </div>
       <!-- EBSi 드롭다운 메뉴가 여기에 바로 표시됩니다 -->
       <div id="ebsiInputs"></div>
+
       <div id="cutInputTable"></div>
       <button onclick="applyCut()" class="copy-btn" style="margin-top: 10px">적용</button>
       <!-- 붙여넣기 팝업 -->
@@ -191,11 +199,13 @@
         <div id="analyzeContent"></div>
       </section>
   </main>
-  <script src="common.js?v=3"></script>
-  <script src="parse_upload.js?v=3"></script>
-  <script src="analyze_gradecut.js?v=3"></script>
-  <script src="view_compare.js?v=3"></script>
-  <script src="analyze_chart.js?v=3"></script>
+  <script src="common.js?v=4"></script>
+  <script src="parse_upload.js?v=4"></script>
+  <script src="analyze_gradecut.js?v=4"></script>
+  <script src="view_compare.js?v=4"></script>
+  <script src="analyze_chart.js?v=4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="export_report.js?v=4"></script>
   <script>
     // 정보 버튼 및 팝업 관련
     document.addEventListener('DOMContentLoaded', function() {
