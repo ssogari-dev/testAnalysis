@@ -42,10 +42,10 @@ function showSection(id) {
     return true;
   }
   
-  // 등급을 매길 근거가 있는지: 등급컷을 불러왔거나, 공식 등급이 들어 있는 [영역별 기준] 성적표를 올린 경우
+  // 분석을 열 수 있는지: 등급컷(특히 국어·수학 표준점수 등급컷)을 불러왔어야 한다.
+  // 성적표에 공식 등급이 있어도([영역별 기준]) 분석 자료에 "등급 구분 표준점수"가 들어가야 하므로 등급컷은 필수다.
   function hasGradingBasis() {
-    const hasCuts = gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
-    return hasCuts || window.uploadedReportFormat === 'area';
+    return gradeCuts.target.std.korean.length > 0 && gradeCuts.target.std.math.length > 0;
   }
 
   function showMessage(message) {

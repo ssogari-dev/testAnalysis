@@ -1074,3 +1074,50 @@
   .info-popup p { color: #4b5563; line-height: 1.6; font-size: 0.95rem; margin-bottom: 0.5rem; }
   .info-popup strong { color: #1f2937; font-weight: 600; }
   .info-popup button { width: 100%; margin-top: 1.5rem; }
+  /* ======================= 심화 성적 분석 ======================= */
+  .adv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .adv-nav { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.88rem; }
+  .adv-nav a { color: var(--primary-color); text-decoration: none; border-bottom: 1px dotted transparent; }
+  .adv-nav a:hover { border-bottom-color: var(--primary-color); }
+  .adv-note { color: var(--subtle-text-color); font-size: 0.88rem; margin: 4px 0 14px; }
+  .adv-grid { display: flex; flex-direction: column; gap: 18px; }
+  .adv-card {
+    background: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    scroll-margin-top: 12px;
+  }
+  .adv-card-head h4 { margin: 0; color: var(--primary-dark); font-size: 1.05rem; }
+  .adv-desc { margin: 6px 0 4px; color: var(--text-color); font-size: 0.92rem; line-height: 1.55; }
+  .adv-more { margin-bottom: 8px; font-size: 0.86rem; color: var(--subtle-text-color); }
+  .adv-more summary { cursor: pointer; color: var(--primary-color); width: fit-content; }
+  .adv-more > div { margin-top: 6px; line-height: 1.6; padding: 8px 10px; background: var(--background-color); border-radius: var(--border-radius); }
+  .adv-body table { margin-top: 0.6rem; }
+  .adv-table th, .adv-table td { padding: 0.45rem 0.6rem; font-size: 0.86rem; }
+  .adv-table tr.adv-total td { font-weight: 700; background: #f8fafc; }
+  .adv-heat td { min-width: 34px; }
+  .adv-chart { position: relative; width: 100%; height: 320px; margin-top: 10px; }
+  .adv-chart-tall { height: 440px; }
+  .adv-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 8px 0; font-size: 0.9rem; }
+  .adv-controls label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .adv-controls-wrap { flex-direction: column; align-items: flex-start; gap: 8px; background: var(--background-color); padding: 10px 12px; border-radius: var(--border-radius); }
+  .adv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .adv-label { font-weight: 600; min-width: 64px; color: var(--subtle-text-color); }
+  .adv-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .adv-num { width: 64px; }
+  .adv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .adv-chip { display: inline-block; padding: 3px 10px; border: 1px solid var(--border-color); border-radius: 999px; font-size: 0.86rem; background: #fff; }
+  .adv-chip-strong { border-color: var(--primary-color); color: var(--primary-dark); font-weight: 600; }
+  .adv-chip-muted { color: var(--subtle-text-color); }
+  .adv-subtitle { margin: 14px 0 0; color: var(--primary-dark); font-size: 0.95rem; }
+  .adv-empty { color: var(--subtle-text-color); font-size: 0.9rem; margin: 8px 0; }
+  .adv-sub { color: var(--subtle-text-color); font-size: 0.8em; }
+  .adv-need { color: var(--error-color); font-weight: 600; }
+  .adv-up { color: var(--success-color); font-weight: 600; }
+  .adv-down { color: var(--error-color); }
+  @media (max-width: 640px) {
+    .adv-card { padding: 12px; }
+    .adv-chart-tall { height: 360px; }
+  }

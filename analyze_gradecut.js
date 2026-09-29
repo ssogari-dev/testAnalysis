@@ -3319,98 +3319,14 @@ window.initAnalyzeTabs = function () {
     `;
   updateCompareGradeFilters();
 
-  // 심화 성적 분석 탭 UI 동적 생성
-  document.getElementById('analyzeSection_advanced').innerHTML = `
-      <div class="mb-16 pb-12" style="border-bottom: 1px dashed var(--border-color); color: var(--subtle-text-color); font-size: 0.9rem;">
-        <span style="color: var(--primary-color);">ⓘ 참고:</span> 교육부와 Google Gemini AI의 학생 성적 분석 자료를 참고하여 제작되었습니다.
-      </div>
-      <div class="mb-18">
-        <button id="showAdvancedBtn" class="copy-btn" onclick="renderAdvancedCharts()">데이터 새로고침</button>
-      </div>
-      
-      <div id="advancedResult" class="chart-modal-grid cols-2" style="display:none; gap: 1.5rem;">
-        
-        <!-- 1. 과목 간 상관관계 산점도 -->
-        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
-          <h4 style="margin-top:0; margin-bottom:1rem; color:var(--primary-dark);">과목 간 상관관계 산점도 (국어 vs 수학)</h4>
-          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #3b82f6;">
-            <p style="margin-top:0;">이 그래프는 <strong>학생 한 명 한 명을 점으로 나타내어 국어와 수학 성적 밸런스</strong>를 보여줍니다. 차트 상단의 <strong>학급별 지표(범례)를 클릭하시면 원하는 반 학생들만 즉시 켜고 끌 수(On/Off) 있어 선택적인 비교 분석이 가능</strong>합니다. 오른쪽 위로 뻗어갈수록 두 과목 모두 최상위권인 학생이며, 원점 방향인 왼쪽 아래로 향할수록 두 과목 모두 각별한 기초 학력 지원이 필요한 학생입니다.</p>
-            <p style="margin-bottom:0;">그래프의 오른쪽 아래 구역에 면밀하게 퍼진 점들은 수학보다 국어 영역에서 뚜렷한 강점을 지닌 학생들입니다. 반대로 왼쪽 위 구역에 치우친 점들은 국어보다 수학 영역에서 훨씬 더 두각을 나타내는 집단입니다. 극단적인 과목별 편식을 보이는 학생들을 발굴하여 전체적인 학습 시간 밸런스 점검을 돕는 개별 밀착 상담용 뷰어(Viewer)로 유용하게 동작합니다.</p>
-          </div>
-          <div style="width:100%; max-width:800px; margin:0 auto; aspect-ratio:1.5;">
-            <canvas id="advChartScatter"></canvas>
-          </div>
-        </div>
-
-        <!-- 2. 학급별 성취도 편차 양방향 차트 -->
-        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
-          <h4 style="margin-top:0; color:var(--primary-dark);">학급별 평균 성취도 편차 (학년 전체 대비)</h4>
-          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #10b981;">
-            <p style="margin-top:0;">전체 학년 평균 위치를 기준선인 0점(가운데 검은색 세로축)으로 고정했을 때, <strong>우리 반의 국어/수학 평균이 전체 학년 흐름 궤도 대비 어느 방향에 놓여 있는지(±)</strong>를 좌우 막대로 직관적으로 보여주는 그룹형 가로 막대 차트입니다.</p>
-            <p style="margin-bottom:0;">붉은색 막대는 각 반의 '국어 평균 편차'를 뜻하며, 푸른색 막대는 '수학 평균 편차'를 의미합니다. 수치가 (+) 우측으로 넓게 뻗어 있다면 해당 학급은 과목 평균이 전체 학년 평균을 이끌어가는 긍정적 시너지를 내고 있음을 뜻합니다. 반면에 (-) 좌측으로 뻗어 학년 평균에 다소 안착하지 못한 과목이 발견된다면, 교과 선생님과의 협의를 통해 우리 반의 수업 참여도나 학습 장애 요인을 다각도로 진단하고 맞춤형 피드백을 모색하는 학급 경영 전략 지표로 유용하게 동작합니다.</p>
-          </div>
-          <div style="width:100%; max-width:900px; margin:0 auto;">
-            <canvas id="advChartDiverging" style="max-height: 450px;"></canvas>
-          </div>
-        </div>
-
-        <!-- 3. 학급별 성적 밀집도 히트맵 -->
-        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
-          <h4 style="margin-top:0; color:var(--primary-dark);">학급별/등급별 성적 밀집도 히트맵 (국어/수학)</h4>
-          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #fdf2f8; border-radius: 6px; border-left: 4px solid #ec4899;">
-            <p style="margin-top:0;">1등급부터 9등급까지 전체 스펙트럼 상에서, 우리 반 학생들이 <strong>어느 등급대 구간에 눈에 띄게 많이 뭉쳐있는지를 '색상의 농도'로 진단</strong>하는 열화상(Heatmap) 형태의 도표입니다. 셀 안의 숫자는 해당 등급을 성취한 학생의 실제 인원수이며, 인원이 다수 응집하여 비율이 클수록 붉고 진한 색상으로 칠해집니다.</p>
-            <p style="margin-bottom:0;">서로 엇비슷한 평균 점수를 기록한 두 학급이라 할지라도, 이 히트맵을 살펴보면 평균의 함정에 가려진 실제 학급 생태계를 깊숙이 들여다볼 수 있습니다. 1~2등급 칸과 8~9등급 칸 양끝이 동시에 붉게 물들어 있다면 양끝으로 넓게 나뉜 성취 다양성 학급의 모습일 것이고, 4~6등급 칸 전체가 시뻘겋게 칠해져 있다면 다수의 묵직한 중위권 학생들이 튼튼한 허리띠를 형성하고 있는 학급임을 말해줍니다. 이러한 분포 특질을 읽어내어 효율적인 멘토-멘티 그룹 결성 등에 곧바로 적용해 보세요.</p>
-          </div>
-          <div id="advHeatmapContainer" style="overflow-x:auto;"></div>
-        </div>
-
-        <!-- 4. 학급별 상자 수염 (상위/중위/하위 밀집도) -->
-        <div class="table-container" style="background:#fff; padding:1.2rem; border-radius:8px; border:1px solid var(--border-color); grid-column:1/-1;">
-          <h4 style="margin-top:0; color:var(--primary-dark);">학급별 학력 편차 (상자 수염 / Box Plot)</h4>
-          <div style="font-size:0.85rem; color:#4b5563; margin-bottom:1rem; line-height:1.6; padding: 12px; background: #fefce8; border-radius: 6px; border-left: 4px solid #eab308;">
-            <p style="margin-top:0;">상자 수염(Box Plot) 그림은 수십 명 학생들의 성적이 학급 내에서 어떻게 퍼져 있고 또 어떻게 핵심적으로 뭉쳐 있는지를 하나의 그림(막대와 선) 층위별로 압축해 낸 가장 다각적이고 입체적인 통계 시각화 기법입니다. (세로축 기준: 국어, 수학 표준점수 합산치)</p>
-            <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">
-                <li style="margin-bottom:0.3rem;"><strong>연한 바탕 회색선 (최대~최소 범위):</strong> 해당 반에서 가장 높은 1등 학생의 점수(상단 끝)부터 기초선에 있는 학생의 점수(하단 끝)까지, 반 구성원 전체 성적이 뻗어 있는 폭넓은 최외곽 학력 스펙트럼을 의미합니다. 위아래로 길면 길수록 반 내에 다양한 층위와 배경의 학생들이 존재함을 나타냅니다.</li>
-                <li style="margin-bottom:0.3rem;"><strong>보라색 진한 박스 (핵심 중위권 50% 구간):</strong> 이른바 상위 25% 지점(Q3) 컷오프에서부터 하위 25% 지점(Q1) 컷오프까지. 반 구성원의 <strong>'메인 허리 50% 층'</strong> 학생들이 옹기종기 모여 있는 골목입니다. 보라색 박스의 상하 꼬리가 짧고 뭉툭하다면 절반 이상의 학생들이 비슷한 영역대에서 오밀조밀 학업에 임하고 있다는 의미이며 반대로 길게 늘어났다면 메인 허리층 학생들의 폭이 매우 여유롭다는 뜻입니다.</li>
-                <li><strong>가운데 두꺼운 빨간 선 (중앙값, Median):</strong> 반 전체 학생을 성적순으로 1렬 줄 세웠을 때, 정확히 정중앙 공간에 속하는 학생의 점수입니다.</li>
-            </ul>
-          </div>
-          <div style="width:100%; max-width:900px; margin:0 auto;">
-            <canvas id="advChartBoxplot" style="max-height: 400px;"></canvas>
-          </div>
-        </div>
-      </div>
-    `;
+  // 심화 성적 분석 탭 UI (analyze_advanced.js)
+  document.getElementById('analyzeSection_advanced').innerHTML =
+    (typeof buildAdvancedSectionHtml === 'function') ? buildAdvancedSectionHtml() : '';
 
   // 기본적으로 전체 성적 분석 탭 활성화
   switchAnalyzeTab('all');
 };
 
-/**
- * 심화 분석 탭의 4가지 차트를 모두 그립니다.
- */
-window.renderAdvancedCharts = function () {
-  if (!parsedData || parsedData.length === 0) {
-    if (typeof showMessage === 'function') showMessage('파싱된 정상적인 데이터가 없습니다. 1단계 성적 파일을 먼저 업로드해주세요.');
-    return;
-  }
-
-  document.getElementById('advancedResult').style.display = 'grid';
-
-  // 1. 과목 간 상관관계 산점도 (학급별 다중 데이터셋 전면 렌더링)
-  window.analysisChart.createAdvScatterChart('advChartScatter', parsedData);
-
-  // 2. 학급별 성취도 편차 양방향 차트 (국어/수학 그룹형)
-  window.analysisChart.createAdvDivergingBarChart('advChartDiverging', parsedData);
-
-  // 3. 학급별/등급별 성적 밀집도 히트맵 (HTML Table 기반)
-  const heatmapContainer = document.getElementById('advHeatmapContainer');
-  heatmapContainer.innerHTML = ''; // 초기화
-  window.analysisChart.renderAdvHeatmap(heatmapContainer, parsedData);
-
-  // 4. 학급별 학력 편차 (상자 수염 / Box Plot 가시화)
-  window.analysisChart.createAdvBoxplotChart('advChartBoxplot', parsedData);
-};
 
 // ------------------- 그래프 관련 함수 -------------------
 /**

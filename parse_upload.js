@@ -578,17 +578,15 @@ function renderUploadSummary(data, fileName) {
     // 어떤 시험의 등급컷인지 보여주고, 학년이 다르면 경고한다 (예전엔 아무 확인 없이 바로 분석했다)
     const ex = window.__lastEbsiExam;
     const official = window.uploadedReportFormat === 'area';
-    const hasCuts = gradeCuts.target.std.korean.length > 0;
-    const cutLabel = official
-      ? '성적표의 공식 등급 사용 (영역별 기준)' + (hasCuts && ex ? ` · 참고 등급컷: ${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}` : '')
-      : (ex ? `${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}`.trim() : '직접 입력한 등급컷');
-    // 공식 등급을 쓰는 파일은 등급컷이 다른 시험이어도 등급이 틀어지지 않으므로 경고하지 않는다
-    const gradeMismatch = !official && ex && ex.gradeVal && grades.length && !grades.includes(String(ex.gradeVal));
+    const cutLabel = (ex ? `${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}`.trim() : '직접 입력한 등급컷')
+      + (official ? ' (학생 등급은 성적표의 공식 등급 사용)' : '');
+    // 등급컷은 분석 자료의 "등급 구분 표준점수"로도 쓰이므로, 공식 등급이 있는 파일이어도 시험이 다르면 경고한다
+    const gradeMismatch = ex && ex.gradeVal && grades.length && !grades.includes(String(ex.gradeVal));
     card.innerHTML = `
       <div class="upload-summary-info">
         <strong>${escapeHtml(fileName)}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
         <div class="upload-summary-note">인식한 형식: ${escapeHtml(window.uploadedReportLabel || '-')}</div>
-        <div class="upload-summary-note">${official ? '등급 기준' : '현재 등급컷'}: ${escapeHtml(cutLabel)}${gradeMismatch ? ' — <strong>파일 학년과 다릅니다. 다른 시험이면 등급컷을 다시 불러오세요.</strong>' : ''}</div>
+        <div class="upload-summary-note">현재 등급컷: ${escapeHtml(cutLabel)}${gradeMismatch ? ' — <strong>파일 학년과 다릅니다. 다른 시험이면 등급컷을 다시 불러오세요.</strong>' : ''}</div>
       </div>
       <button class="upload-next-btn" onclick="showSection('analyze')">
         바로 분석하러 가기
