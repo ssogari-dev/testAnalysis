@@ -929,20 +929,22 @@ function suneungFindSubjectKey(examObj, candidates) {
   return null;
 }
 
-// 표준점수로 원점수를 역산 (정확히 일치하는 값이 있을 때만 반환, 근사치 추정은 하지 않음)
+// 표준점수 등급컷 → 원점수 등급컷 역산 (정확히 일치하는 값이 있을 때만 반환, 근사치 추정은 하지 않음)
+// 원점수 여러 개가 같은 표준점수가 되는 경우가 있다(예: 수학 69·68점 → 130). 등급컷은 그 표준점수를 받는
+// "가장 낮은" 원점수여야 하므로 마지막으로 일치하는 칸(배열은 원점수 내림차순)을 쓴다.
+// (예전엔 첫 칸 = 가장 높은 원점수를 써서 컷이 1점 높게 나오는 과목이 있었다 — 2025년 9월 고2 공식 성적으로 확인)
 function suneungReverseRaw(arr, stdTarget, maxRaw) {
   if (!Array.isArray(arr) || arr.length < 2) return null;
   const target = Number(stdTarget);
   if (isNaN(target)) return null;
   const step = maxRaw / (arr.length - 1);
+  let found = -1;
   for (let idx = 0; idx < arr.length; idx++) {
     const entry = arr[idx];
-    if (entry && entry.length && Number(entry[0]) === target) {
-      const raw = maxRaw - idx * step;
-      return Math.round(raw * 100) / 100;
-    }
+    if (Array.isArray(entry) && entry.length && Number(entry[0]) === target) found = idx;
   }
-  return null;
+  if (found < 0) return null;
+  return Math.round((maxRaw - found * step) * 100) / 100;
 }
 
 // 표준점수로 원점수+백분위를 함께 역산 (표준점수 등급컷 자동완성과 달리, 학생 개인별 추정에 사용)
@@ -1247,8 +1249,20 @@ async function fillMissingRawFromSuneungCalc(gradeVal, year, examText) {
 // 실채점 결과 발표 이후 EBSi에서 원점수 열이 삭제되는 경우가 있어,
 // 고정 인덱스(2/3) 대신 헤더 텍스트로 열을 찾아야 안전하다.
 // @returns {{rawIdx:number, stdIdx:number}} 못 찾으면 -1
+// EBSi 등급컷 표에서 g등급 줄을 찾는다. 첫 칸이 등급 숫자인 줄을 우선 찾고(최고점 줄 유무와 무관),
+// 그런 줄이 없으면 예전처럼 위치(g번째 줄)로 찾는다.
+function gradeRow(trs, g) {
+  const list = Array.from(trs || []);
+  const labeled = list.find(tr => (tr.children?.[0]?.textContent || '').trim() === String(g));
+  return labeled || list[g];
+}
+
+// EBSi 표는 머리글(등급/작년컷/원점수/표준점수/백분위)이 <thead>에 있고 <tbody> 첫 줄은 "최고점"이다.
+// 그래서 넘겨받은 줄이 속한 표의 <thead> 머리글을 먼저 본다. (예전엔 tbody 첫 줄만 봐서 머리글을 찾지 못하고
+// 항상 고정 열 2/3으로 읽었다 — 실채점 후 원점수 열이 빠지면 표준점수를 원점수로 잘못 읽을 수 있었다)
 function findRawStdColIdx(headerTr) {
-  const cells = Array.from(headerTr?.children || []).map(c => (c.innerText || c.textContent || '').trim());
+  const headRow = headerTr?.closest?.('table')?.querySelector('thead tr') || headerTr;
+  const cells = Array.from(headRow?.children || []).map(c => (c.innerText || c.textContent || '').trim());
   let rawIdx = cells.findIndex(t => t.includes('원점수'));
   let stdIdx = cells.findIndex(t => t.includes('표준점수'));
   if (rawIdx === -1 && stdIdx === -1) { rawIdx = 2; stdIdx = 3; } // 폴백(과거 레이아웃)
@@ -1285,7 +1299,9 @@ window.parseEBSiGradeCutHtml = function (html, tab = 'target') {
     // 헤더 행(등급컷 표의 첫 번째 tr)의 셀 텍스트로 원점수/표준점수 열 위치를 찾는다.
     // 실채점 결과 발표 이후에는 EBSi에서 원점수 열 자체가 삭제되는 경우가 있어,
     // 고정 인덱스(2/3) 대신 헤더 텍스트 기반으로 열을 찾아야 안전하다.
-    const headerCells = Array.from(trs[0]?.querySelectorAll('td,th') || []).map(c => (c.textContent || '').trim());
+    // 머리글은 <thead>에 있다 (tbody 첫 줄은 "최고점") — 없으면 예전처럼 첫 줄로
+    const headRow = col.querySelector('thead tr') || trs[0];
+    const headerCells = Array.from(headRow?.querySelectorAll('td,th') || []).map(c => (c.textContent || '').trim());
     let rawIdx = headerCells.findIndex(t => t.includes('원점수'));
     let stdIdx = headerCells.findIndex(t => t.includes('표준점수'));
     // 헤더를 못 찾은 경우 과거 레이아웃(2/3열)로 폴백
@@ -1293,7 +1309,7 @@ window.parseEBSiGradeCutHtml = function (html, tab = 'target') {
 
     let rawArr = [], stdArr = [];
     for (let i = 1; i <= 8; i++) {
-      const tr = trs[i];
+      const tr = gradeRow(trs, i);
       if (!tr) continue;
       const tds = tr.querySelectorAll('td');
       if (rawIdx !== -1) rawArr.push(Number(tds[rawIdx]?.textContent.trim() || 0));
@@ -1589,8 +1605,8 @@ async function loadEbsiGradeCuts() {
           cuts[subj] = [];
           stds[subj] = [];
           for (let i = 1; i <= 8; i++) {
-            if (rawIdx !== -1) cuts[subj][i - 1] = Number(trs?.[i]?.children[rawIdx]?.innerText || 0);
-            if (stdIdx !== -1) stds[subj][i - 1] = Number(trs?.[i]?.children[stdIdx]?.innerText || 0);
+            if (rawIdx !== -1) cuts[subj][i - 1] = Number(gradeRow(trs, i)?.children[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) stds[subj][i - 1] = Number(gradeRow(trs, i)?.children[stdIdx]?.innerText || 0);
           }
           if (rawIdx === -1) cuts[subj] = []; // EBSi에서 원점수 열이 삭제된 경우 비워둠(표준점수로 대체 분석)
         });
@@ -1603,8 +1619,8 @@ async function loadEbsiGradeCuts() {
         cuts[req.key] = [];
         stds[req.key] = [];
         for (let i = 1; i <= 8; i++) {
-          if (rawIdx !== -1) cuts[req.key][i - 1] = Number(trs?.[i]?.children[rawIdx]?.innerText || 0);
-          if (stdIdx !== -1) stds[req.key][i - 1] = Number(trs?.[i]?.children[stdIdx]?.innerText || 0);
+          if (rawIdx !== -1) cuts[req.key][i - 1] = Number(gradeRow(trs, i)?.children[rawIdx]?.innerText || 0);
+          if (stdIdx !== -1) stds[req.key][i - 1] = Number(gradeRow(trs, i)?.children[stdIdx]?.innerText || 0);
         }
         if (rawIdx === -1) cuts[req.key] = [];
       }
@@ -1755,8 +1771,8 @@ async function loadEbsiGradeCuts() {
           const trs = col.querySelectorAll('tbody tr');
           const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           for (let i = 1; i <= 8; i++) {
-            if (rawIdx !== -1) d2.basic.raw[slug][i - 1] = Number(trs?.[i]?.children?.[rawIdx]?.innerText || 0);
-            if (stdIdx !== -1) d2.basic.std[slug][i - 1] = Number(trs?.[i]?.children?.[stdIdx]?.innerText || 0);
+            if (rawIdx !== -1) d2.basic.raw[slug][i - 1] = Number(gradeRow(trs, i)?.children?.[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) d2.basic.std[slug][i - 1] = Number(gradeRow(trs, i)?.children?.[stdIdx]?.innerText || 0);
           }
           if (rawIdx === -1) d2.basic.raw[slug] = [];
         });
@@ -1774,8 +1790,8 @@ async function loadEbsiGradeCuts() {
           const trs = col.querySelectorAll('tbody tr');
           const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           for (let i = 1; i <= 8; i++) {
-            if (rawIdx !== -1) d2.social[slug].raw[i - 1] = Number(trs?.[i]?.children?.[rawIdx]?.innerText || 0);
-            if (stdIdx !== -1) d2.social[slug].std[i - 1] = Number(trs?.[i]?.children?.[stdIdx]?.innerText || 0);
+            if (rawIdx !== -1) d2.social[slug].raw[i - 1] = Number(gradeRow(trs, i)?.children?.[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) d2.social[slug].std[i - 1] = Number(gradeRow(trs, i)?.children?.[stdIdx]?.innerText || 0);
           }
           if (rawIdx === -1) d2.social[slug].raw = [];
         });
@@ -1793,8 +1809,8 @@ async function loadEbsiGradeCuts() {
           const trs = col.querySelectorAll('tbody tr');
           const { rawIdx, stdIdx } = findRawStdColIdx(trs?.[0]);
           for (let i = 1; i <= 8; i++) {
-            if (rawIdx !== -1) d2.science[slug].raw[i - 1] = Number(trs?.[i]?.children?.[rawIdx]?.innerText || 0);
-            if (stdIdx !== -1) d2.science[slug].std[i - 1] = Number(trs?.[i]?.children?.[stdIdx]?.innerText || 0);
+            if (rawIdx !== -1) d2.science[slug].raw[i - 1] = Number(gradeRow(trs, i)?.children?.[rawIdx]?.innerText || 0);
+            if (stdIdx !== -1) d2.science[slug].std[i - 1] = Number(gradeRow(trs, i)?.children?.[stdIdx]?.innerText || 0);
           }
           if (rawIdx === -1) d2.science[slug].raw = [];
         });
@@ -2742,7 +2758,7 @@ async function fetchCompareEbsiCuts() {
         const trs = col6s[idx]?.querySelectorAll('tbody tr');
         const { stdIdx } = findRawStdColIdx(trs?.[0]);
         for (let i = 1; i <= 8; i++) {
-          std[subj][i - 1] = (stdIdx !== -1) ? Number(trs?.[i]?.children[stdIdx]?.innerText || 0) : 0;
+          std[subj][i - 1] = (stdIdx !== -1) ? Number(gradeRow(trs, i)?.children[stdIdx]?.innerText || 0) : 0;
         }
       });
     } else if (req.key === 'g3_main') {
