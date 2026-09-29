@@ -72,34 +72,21 @@ function numOrBlank(v) {
   return isNaN(n) ? '' : n;
 }
 
-// 등급: 파일에 기록된 등급이 있으면 그것(공식 값), 없으면 등급컷으로 산출
-function gradeFor(rec, scoreField, cuts) {
-  if (!rec) return '';
-  const recorded = Number(rec.등급);
-  if (!isNaN(recorded) && recorded >= 1 && recorded <= 9 && String(rec.등급).trim() !== '') return recorded;
-  const g = (typeof resolveStudentGrade === 'function') ? resolveStudentGrade(rec, scoreField, cuts) : null;
+// 등급: 화면(전체 분석·성적 확인·학생 명단)과 같은 규칙으로 매긴다 — 점수가 있으면 등급컷,
+// 점수가 없으면 파일에 기록된 등급 (CSV '기록 등급 사용' 옵션이면 기록된 등급)
+function subjectGrade(s, subject) {
+  const g = studentGradeFor(s, subject, 'target');
   return g === null || g === undefined ? '' : g;
 }
 
-// 학생의 탐구1/탐구2 목록 (원래 순서). 목록이 없는 형식이면 사회탐구/과학탐구 칸으로 대신 만든다.
+// 학생의 탐구1/탐구2 목록 (원래 순서) + 대교협 과목명 + 등급
 function exploreEntriesOf(s, examYear) {
-  const grade = String(s.학년);
-  const newSys = typeof isNewTamguSystem === 'function' && isNewTamguSystem(grade, examYear);
+  const newSys = typeof isNewTamguSystem === 'function' && isNewTamguSystem(String(s.학년), examYear);
   const commonName = cat => (newSys ? (cat === 'science' ? '과학' : '사회') : '');
-  if (Array.isArray(s.탐구목록) && s.탐구목록.length) {
-    return s.탐구목록.map(e => ({
-      ...e,
-      과목: e.과목 || commonName(e.분류),
-      등급: gradeFor(e, '표준점수', gradeCuts.target.std[e.분류 === 'science' ? 'science' : 'social'])
-    }));
-  }
-  const out = [];
-  [['사회탐구', 'social'], ['과학탐구', 'science']].forEach(([key, cat]) => {
-    const r = s[key];
-    if (!r || (!String(r.표준점수 || '').trim() && !String(r.원점수 || '').trim())) return;
-    out.push({ ...r, 분류: cat, 과목: r.과목 || commonName(cat), 등급: gradeFor(r, '표준점수', gradeCuts.target.std[cat]) });
+  return studentExploreEntries(s).map(e => {
+    const g = exploreEntryGrade(e, 'target');
+    return { ...e, 과목: e.과목 || commonName(e.분류), 등급: g === null ? '' : g };
   });
-  return out;
 }
 
 function currentExamInfo() {
@@ -124,31 +111,23 @@ function buildHwpxReportData(opts) {
   const T = typeof getCompareTargetData === 'function' ? getCompareTargetData() : parsedData;
   const C = typeof getCompareCompareData === 'function' ? getCompareCompareData() : [];
   const includeCompare = !!opts.includeCompare && C.length > 0;
-  const key = { '국어': 'korean', '수학': 'math', '영어': 'english', '한국사': 'history', '사회탐구': 'social', '과학탐구': 'science' };
-  const cutsOf = subj => [gradeCuts.target.raw[key[subj]], gradeCuts.target.std[key[subj]]];
-
-  const withCompareExt = fn => {
-    const prev = window.uploadedFileExt;
-    window.uploadedFileExt = window.compareUploadedFileExt;
-    try { return fn(); } finally { window.uploadedFileExt = prev; }
-  };
-  const compareRecorded = window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true;
-  const distT = subj => getGradeDistByCut(T, subj, ...cutsOf(subj));
-  const distC = subj => compareRecorded ? getGradeDistByRecordedGrade(C, subj) : withCompareExt(() => getGradeDistByCut(C, subj, ...cutsOf(subj)));
-  const g12T = subj => get12GradeByCut(T, subj, ...cutsOf(subj));
-  const g12C = subj => compareRecorded ? get12GradeByRecordedGrade(C, subj) : withCompareExt(() => get12GradeByCut(C, subj, ...cutsOf(subj)));
+  // 전체 분석 표(1~8)는 업로드한 파일 전체, 비교 표는 비교 탭의 학년 필터를 적용한 데이터로 계산한다
+  // (화면의 '전체 성적 분석'·'비교 성적 분석'과 같은 기준)
+  const P = parsedData;
+  const distP = subj => getGradeDistByCut(P, subj, ...cutsForSide(subj, 'target'), 'target');
+  const g12P = subj => get12GradeByCut(P, subj, ...cutsForSide(subj, 'target'), 'target');
   const stat = (data, subj, type, k) => getSubjectStat(data, subj, type, k);
 
   const hasAny = rec => !!rec && ['원점수', '표준점수', '등급'].some(f => rec[f] !== undefined && String(rec[f]).trim() !== '');
-  const N = T.length;
-  const takers = subj => T.filter(s => hasAny(s[subj])).length;
+  const N = P.length;
+  const takers = subj => P.filter(s => hasAny(s[subj])).length;
   const pct = (n, d) => (d ? (n / d * 100) : 0);
 
   const cutVal = (arr, i) => (arr && arr[i] !== undefined && arr[i] !== '' && Number(arr[i]) > 0) ? String(arr[i]) : '-';
 
   // 성적 상위자 (국어+수학+탐구 표준점수 합)
   const examYear = currentExamInfo().year;
-  const ranked = T.map(s => {
+  const ranked = P.map(s => {
     const kor = numOrBlank(s.국어?.표준점수);
     const math = numOrBlank(s.수학?.표준점수);
     const exps = exploreEntriesOf(s, examYear);
@@ -167,10 +146,10 @@ function buildHwpxReportData(opts) {
     name: x.s.이름 || '',
     sum: x.sum,
     rank: x.rank,
-    kor: x.kor, korGrade: gradeFor(x.s.국어, '표준점수', gradeCuts.target.std.korean),
-    math: x.math, mathGrade: gradeFor(x.s.수학, '표준점수', gradeCuts.target.std.math),
-    engGrade: gradeFor(x.s.영어, '원점수', gradeCuts.target.raw.english),
-    hisGrade: gradeFor(x.s.한국사, '원점수', gradeCuts.target.raw.history),
+    kor: x.kor, korGrade: subjectGrade(x.s, '국어'),
+    math: x.math, mathGrade: subjectGrade(x.s, '수학'),
+    engGrade: subjectGrade(x.s, '영어'),
+    hisGrade: subjectGrade(x.s, '한국사'),
     socGrade: x.soc ? x.soc.등급 : '', soc: x.soc ? numOrBlank(x.soc.표준점수) : '',
     sciGrade: x.sci ? x.sci.등급 : '', sci: x.sci ? numOrBlank(x.sci.표준점수) : ''
   }));
@@ -193,15 +172,24 @@ function buildHwpxReportData(opts) {
     })),
     stats: ['표준점수', '백분위'].reduce((o, type) => {
       o[type] = statKeys.map(k => ({
-        kor: f2(stat(T, '국어', type, k)), math: f2(stat(T, '수학', type, k)),
+        kor: f2(stat(P, '국어', type, k)), math: f2(stat(P, '수학', type, k)),
+        korT: f2(stat(T, '국어', type, k)), mathT: f2(stat(T, '수학', type, k)),
         korC: f2(stat(C, '국어', type, k)), mathC: f2(stat(C, '수학', type, k))
       }));
       return o;
     }, {}),
-    dist: ['국어', '수학', '영어'].map(subj => ({ t: distT(subj), c: includeCompare ? distC(subj) : null })),
-    g12: ['국어', '수학', '영어'].map(subj => ({ t: g12T(subj), c: includeCompare ? g12C(subj) : null })),
-    distExplore: ['사회탐구', '과학탐구'].map(subj => distT(subj)),
-    g12Explore: ['사회탐구', '과학탐구'].map(subj => g12T(subj)),
+    dist: ['국어', '수학', '영어'].map(subj => ({
+      t: distP(subj),
+      tc: compareTabDist('target', subj),
+      c: includeCompare ? compareTabDist('compare', subj) : null
+    })),
+    g12: ['국어', '수학', '영어'].map(subj => ({
+      t: g12P(subj),
+      tc: compareTab12('target', subj),
+      c: includeCompare ? compareTab12('compare', subj) : null
+    })),
+    distExplore: ['사회탐구', '과학탐구'].map(subj => distP(subj)),
+    g12Explore: ['사회탐구', '과학탐구'].map(subj => g12P(subj)),
     top20
   };
 }
@@ -278,27 +266,29 @@ function fillHwpxSection(xml, d, Parser, Serializer) {
   // T4 표준점수 통계 / T5 비교(표준점수) / T6 비교(백분위)
   d.stats['표준점수'].forEach((row, i) => {
     setCell(4, i + 1, 1, row.kor); setCell(4, i + 1, 2, row.math);
-    setCell(5, i + 1, 1, pair(row.kor, row.korC)); setCell(5, i + 1, 2, pair(row.math, row.mathC));
+    setCell(5, i + 1, 1, pair(row.korT ?? row.kor, row.korC)); setCell(5, i + 1, 2, pair(row.mathT ?? row.math, row.mathC));
   });
   d.stats['백분위'].forEach((row, i) => {
-    setCell(6, i + 1, 1, pair(row.kor, row.korC)); setCell(6, i + 1, 2, pair(row.math, row.mathC));
+    setCell(6, i + 1, 1, pair(row.korT ?? row.kor, row.korC)); setCell(6, i + 1, 2, pair(row.mathT ?? row.math, row.mathC));
   });
   // T7 국어/수학/영어 등급 인원 / T8 비교
   d.dist.forEach((x, si) => {
     const col = 1 + si * 2;
+    const tc = x.tc || x.t; // 비교 표의 대상 값 (비교 탭 학년 필터 적용)
     for (let g = 0; g < 9; g++) {
       setCell(7, g + 2, col, String(x.t.dist[g]));
       setCell(7, g + 2, col + 1, String(x.t.ratio[g]));
-      setCell(8, g + 2, col, pair(String(x.t.dist[g]), x.c ? String(x.c.dist[g]) : ''));
-      setCell(8, g + 2, col + 1, pair(String(x.t.ratio[g]), x.c ? String(x.c.ratio[g]) : ''));
+      setCell(8, g + 2, col, pair(String(tc.dist[g]), x.c ? String(x.c.dist[g]) : ''));
+      setCell(8, g + 2, col + 1, pair(String(tc.ratio[g]), x.c ? String(x.c.ratio[g]) : ''));
     }
     setCell(7, 11, col, String(x.t.total)); setCell(7, 11, col + 1, '100');
-    setCell(8, 11, col, pair(String(x.t.total), x.c ? String(x.c.total) : ''));
+    setCell(8, 11, col, pair(String(tc.total), x.c ? String(x.c.total) : ''));
   });
   // T9 1·2등급 비율 / T10 비교
   d.g12.forEach((x, si) => {
     setCell(9, 1, si + 1, `${x.t.cnt} / ${x.t.ratio}`);
-    setCell(10, 1, si + 1, pair(`${x.t.cnt} / ${x.t.ratio}`, x.c ? `${x.c.cnt} / ${x.c.ratio}` : ''));
+    const tc = x.tc || x.t;
+    setCell(10, 1, si + 1, pair(`${tc.cnt} / ${tc.ratio}`, x.c ? `${x.c.cnt} / ${x.c.ratio}` : ''));
   });
   // T11 탐구 등급 인원 / T12 탐구 1·2등급 비율
   d.distExplore.forEach((x, si) => {
@@ -400,17 +390,17 @@ function buildDaegyoRows(schoolYear) {
     return {
       A: numOrBlank(schoolYear), B: numOrBlank(s.학년), C: numOrBlank(s.반), D: numOrBlank(s.번호), E: s.이름 || '',
       // 한국사 (원점수는 자료에 없어 비워둔다)
-      F: '', G: gradeFor(s.한국사, '원점수', gradeCuts.target.raw.history),
+      F: '', G: subjectGrade(s, '한국사'),
       // 국어
       H: hasScore(s.국어) ? daegyoSubjectName(s.국어.과목 || '국어') : '',
       I: numOrBlank(s.국어?.원점수), J: numOrBlank(s.국어?.표준점수), K: numOrBlank(s.국어?.백분위),
-      L: hasScore(s.국어) ? gradeFor(s.국어, '표준점수', gradeCuts.target.std.korean) : '',
+      L: hasScore(s.국어) ? subjectGrade(s, '국어') : '',
       // 수학
       M: hasScore(s.수학) ? daegyoSubjectName(s.수학.과목 || '수학') : '',
       N: numOrBlank(s.수학?.원점수), O: numOrBlank(s.수학?.표준점수), P: numOrBlank(s.수학?.백분위),
-      Q: hasScore(s.수학) ? gradeFor(s.수학, '표준점수', gradeCuts.target.std.math) : '',
+      Q: hasScore(s.수학) ? subjectGrade(s, '수학') : '',
       // 영어 (원점수는 자료에 없어 비워둔다)
-      R: '', S: gradeFor(s.영어, '원점수', gradeCuts.target.raw.english),
+      R: '', S: subjectGrade(s, '영어'),
       // 탐구1 / 탐구2
       T: daegyoSubjectName(e1.과목), U: numOrBlank(e1.원점수), V: numOrBlank(e1.표준점수), W: numOrBlank(e1.백분위), X: numOrBlank(e1.등급),
       Y: daegyoSubjectName(e2.과목), Z: numOrBlank(e2.원점수), AA: numOrBlank(e2.표준점수), AB: numOrBlank(e2.백분위), AC: numOrBlank(e2.등급),
@@ -536,10 +526,13 @@ function openExportDialog(kind) {
         <button type="button" class="action-btn" id="expRun">내보내기</button>
       </div>`;
   } else {
-    const defaultYear = Number(info.year) + 1;
+    // 대교협 서식 안내: "학년도는 1, 2, 3학년 모두 (올해 입시) 학년도로 입력" — 시험 연도가 아니라
+    // 지금 준비하는 입시 학년도(올해+1)가 기본값이다 (작년 시험 파일을 내보내도 같은 학년도)
+    const defaultYear = new Date().getFullYear() + 1;
     dlg.innerHTML = `
       <h3>대교협 분석자료 내보내기 (XLSX)</h3>
       <label class="export-field">학년도<input id="expSchoolYear" type="number" min="2000" max="2100" value="${defaultYear}"></label>
+      <p class="export-hint">서식 안내에 따라 1·2·3학년 모두 같은 학년도(올해 입시 학년도)로 입력합니다.</p>
       <p class="export-hint">'저장' 시트에 학생 ${parsedData.length}명의 자료를 채웁니다. 영어·한국사 원점수와 제2외국어는 자료에 없어 비워둡니다.</p>
       <div class="btn-row export-actions">
         <button type="button" class="action-btn-secondary" onclick="closeExportDialog()">취소</button>

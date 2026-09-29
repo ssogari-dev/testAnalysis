@@ -5,15 +5,23 @@
   <title>성적 분석 사이트</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- 검색봇 차단 메타 태그 -->
-  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
-  <meta name="googlebot" content="noindex, nofollow">
-  <meta name="bingbot" content="noindex, nofollow">
+  <!-- 검색엔진·AI 봇 수집 거부 (robots.txt와 함께 사용. noai/noimageai는 AI 학습 거부 표시) -->
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, max-snippet:0, max-image-preview:none, noai, noimageai">
+  <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+  <meta name="googlebot-news" content="noindex, nofollow">
+  <meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet">
+  <meta name="Yeti" content="noindex, nofollow">
+  <meta name="GPTBot" content="noindex, nofollow">
+  <meta name="ClaudeBot" content="noindex, nofollow">
+  <meta name="CCBot" content="noindex, nofollow">
+  <meta name="PerplexityBot" content="noindex, nofollow">
   <link rel="stylesheet" href="style.css?v=4">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <!-- 외부 라이브러리는 버전을 고정하고 무결성 해시(integrity)를 붙인다: CDN 파일이 바뀌거나 변조되면 실행되지 않는다 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js" integrity="sha384-3N9GHhCtN3CQef6tNfqgZlv7sQLYIkcChN+uaTZ7xVdzKYp/SjBNPxa92+hM7EAY" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js" integrity="sha384-M00GJNq2IplZCB3+JOJEl2H0un45ODvqJSSnIc4DvG8gPn8RX5ToITFXcv3AvOx5" crossorigin="anonymous"></script>
 </head>
 <body>
   <button id="settingsToggle" class="settings-fab" aria-label="설정 열기">⚙</button>
@@ -204,7 +212,7 @@
   <script src="analyze_gradecut.js?v=4"></script>
   <script src="view_compare.js?v=4"></script>
   <script src="analyze_chart.js?v=4"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
   <script src="export_report.js?v=4"></script>
   <script>
     // 정보 버튼 및 팝업 관련
@@ -305,10 +313,10 @@
         if (cStdEXP) window.csvCompareUseStdExplore = !!cStdEXP.checked;
         if (cRec) window.csvCompareUseRecorded = !!cRec.checked;
         // 현재 활성 섹션에 맞춰 재렌더
+        // (예전엔 'compare' 화면을 찾았는데 그런 화면이 없어 비교 결과가 갱신되지 않았다 — 비교는 성적 분석 안의 탭)
         const active = document.querySelector('section.content-section.active')?.id;
-        if (active === 'analyze') { window.analyzeAll?.(); }
+        if (active === 'analyze' && typeof switchAnalyzeTab === 'function') { switchAnalyzeTab(typeof analyzeTab !== 'undefined' ? analyzeTab : 'all'); }
         if (active === 'view') { window.showStudentData?.(); }
-        if (active === 'compare') { window.renderCompareResult?.(); }
       };
       fab?.addEventListener('click', ()=>{ side.classList.add('open'); syncFromState(); });
       closeBtn?.addEventListener('click', ()=> side.classList.remove('open'));

@@ -246,8 +246,8 @@ function ensureGradeCutDetails() {
  */
 function switchAnalyzeTab(tab) {
   analyzeTab = tab;
-  // 모든 탭 버튼에서 active 클래스 제거
-  document.querySelectorAll('.analyze-tab-btn').forEach(btn => btn.classList.remove('active'));
+  // 모든 탭 버튼에서 active 클래스 제거 (등급컷 화면의 과목 탭도 같은 클래스를 써서, 범위를 성적 분석 영역으로 한정)
+  document.querySelectorAll('#analyzeContent .analyze-tab-btn').forEach(btn => btn.classList.remove('active'));
   // 선택된 탭 버튼에 active 클래스 추가
   document.getElementById('analyzeTabBtn_' + tab).classList.add('active');
   // 모든 섹션 숨기기 (hidden 클래스로 제어)
@@ -255,9 +255,12 @@ function switchAnalyzeTab(tab) {
   // 선택된 섹션만 표시
   document.getElementById('analyzeSection_' + tab).classList.remove('hidden');
 
+  // 파일·등급컷이 준비되기 전에는 그리지 않는다 (빈 데이터로 그린 표가 남아 있지 않도록)
+  if (typeof checkAccessPermission === 'function' && !checkAccessPermission('analyze')) return;
+
   // 탭별 초기화 함수 실행
   if (tab === 'all') window.analyzeAll(); // 전체 성적 분석 실행
-  if (tab === 'compare') resetCompareTab(); // 비교 분석 탭 초기화
+  if (tab === 'compare') refreshCompareTab(); // 비교 분석 탭 (올려둔 비교 파일은 유지)
   if (tab === 'advanced') {
     if (typeof renderAdvancedCharts === 'function') renderAdvancedCharts();
   }
@@ -862,12 +865,48 @@ window.loadSuneungCalcData = async function () {
   const res = await fetch('https://suneungcalc.com/js/data.js');
   if (!res.ok) throw new Error('data.js를 불러오지 못했습니다. (HTTP ' + res.status + ')');
   const text = await res.text();
-  const factory = new Function(text + '\n;return (typeof data !== "undefined") ? data : null;');
-  const parsed = factory();
+  const parsed = parseSuneungCalcDataText(text);
   if (!parsed) throw new Error('data.js에서 데이터를 찾지 못했습니다.');
   window.__suneungCalcData = parsed;
   return parsed;
 };
+
+// data.js를 "실행하지 않고" 값으로만 읽는다. (예전엔 new Function으로 실행했는데, 외부 사이트 파일이
+// 바뀌거나 변조되면 학생 성적이 열려 있는 이 페이지에서 임의의 코드가 돌 수 있었다)
+// 파일 모양: let data = { ... }; — 주석, 작은따옴표 문자열, 끝 쉼표가 섞인 JS 객체 리터럴이라
+// 문자열 밖의 주석을 지우고 작은따옴표 문자열을 JSON 문자열로 바꾼 뒤 끝 쉼표를 없애 JSON으로 읽는다.
+function parseSuneungCalcDataText(text) {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start < 0 || end < start) return null;
+  const src = text.slice(start, end + 1);
+  let out = '';
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === '"' || ch === "'") {
+      let j = i + 1, val = '';
+      while (j < src.length && src[j] !== ch) {
+        if (src[j] === '\\') { val += src[j] + src[j + 1]; j += 2; continue; }
+        val += src[j++];
+      }
+      if (ch === '"') out += '"' + val + '"';
+      else out += JSON.stringify(val.replace(/\\'/g, "'"));
+      i = j;
+    } else if (ch === '/' && src[i + 1] === '/') {
+      while (i < src.length && src[i] !== '\n') i++;
+    } else if (ch === '/' && src[i + 1] === '*') {
+      i = src.indexOf('*/', i + 2);
+      if (i < 0) break;
+      i++;
+    } else {
+      out += ch;
+    }
+  }
+  out = out.replace(/,(\s*[\]}])/g, '$1');
+  // 원본에 쉼표가 빠진 곳("[]\n[...]")이 있다. JS로 실행하면 이 부분은 "빈 배열[인덱스]" = undefined 한 칸이 되므로 똑같이 null 한 칸으로 읽는다
+  out = out.replace(/\[\s*\]\s*\[[^\[\]]*\]/g, 'null');
+  try { return JSON.parse(out); } catch (e) { return null; }
+}
 
 // suneungcalc 과목명과 우리 내부 과목명/슬러그 사이의 표기 차이(공백, 가운뎃점, 로마숫자 등)를 무시하고 비교
 function suneungNormKey(s) {
@@ -942,6 +981,17 @@ const SNC_SLUG_TO_KOREAN = {
  * 구 교육과정 선택과목(개별 학생이 어떤 과목을 골랐는지 파일에 없음)은 추정하지 않는다.
  * 이미 원점수가 있는 과목은 절대 덮어쓰지 않는다.
  */
+function clearStaleEstimates(students, currentKey) {
+  const clear = rec => {
+    if (!rec || !rec._추정) return;
+    Object.keys(rec._추정).forEach(f => { if (rec._추정[f] !== currentKey) { rec[f] = ''; delete rec._추정[f]; } });
+  };
+  (students || []).forEach(s => {
+    ['국어', '수학', '사회탐구', '과학탐구'].forEach(k => clear(s[k]));
+    (s.탐구목록 || []).forEach(clear);
+  });
+}
+
 async function estimateStudentsRawScores(students, examContext) {
   const ctx = examContext || window.__lastEbsiExam;
   if (!ctx) return;
@@ -956,7 +1006,11 @@ async function estimateStudentsRawScores(students, examContext) {
   let sncData;
   try { sncData = await window.loadSuneungCalcData(); } catch (e) { return; }
   const examObj = sncData[key];
-  if (!examObj) return;
+  if (!examObj) {
+    // 이 시험 자료가 없으면, 다른 시험 기준으로 추정해 둔 값은 틀린 값이므로 지운다
+    clearStaleEstimates(students, key);
+    return;
+  }
 
   // 추정한 값은 실제 원점수/백분위 칸에 그대로 채운다 — 한 번 채워지면 "성적 확인"뿐 아니라
   // "성적 분석"의 통계·차트 등 원점수를 참조하는 모든 곳에서 자연스럽게 쓰이게 하기 위함.
@@ -967,21 +1021,28 @@ async function estimateStudentsRawScores(students, examContext) {
   // - 원점수: 3학년·수능형 국어/수학처럼 표 맨 앞에 회귀식(공통+선택 조합) 객체가 있는 과목은
   //   원점수가 한 값으로 정해지지 않으므로 채우지 않는다. (학년이 아니라 데이터 모양으로 판단)
   // fillGrade: 탐구목록처럼 선택과목별 등급컷이 따로 없는 경우, 변환표의 등급 칸으로 등급도 채운다
+  //
+  // 추정해서 채운 칸은 rec._추정[칸] = 시험 키로 표시해 둔다. 나중에 다른 시험(등급컷)을 불러오면
+  // 그 칸은 새 시험 기준으로 다시 계산한다 — 파일에 원래 있던 값(표시 없음)은 절대 건드리지 않는다.
   const fill = (rec, candidates, maxRaw, fillGrade) => {
     if (!rec || !rec.표준점수) return;
-    const needRaw = !rec.원점수 || rec.원점수 === '';
-    const needPct = !rec.백분위 || rec.백분위 === '';
-    const needGrade = fillGrade && (!rec.등급 || rec.등급 === '');
-    if (!needRaw && !needPct && !needGrade) return;
+    const est = rec._추정 || (rec._추정 = {});
+    const fields = fillGrade ? ['원점수', '백분위', '등급'] : ['원점수', '백분위'];
+    // 다른 시험 기준으로 추정했던 칸은 비우고 다시 계산
+    fields.forEach(f => { if (est[f] && est[f] !== key) { rec[f] = ''; delete est[f]; } });
+    const isEmpty = f => rec[f] === undefined || rec[f] === null || String(rec[f]).trim() === '';
+    const need = fields.filter(f => isEmpty(f));
+    if (!need.length) return;
     const subjectKey = suneungFindSubjectKey(examObj, candidates.filter(Boolean));
     if (!subjectKey) return;
     const arr = examObj[subjectKey];
     const result = suneungReverseLookup(arr, rec.표준점수, maxRaw);
     if (!result) return;
     const rawInvertible = Array.isArray(arr) && Array.isArray(arr[0]);
-    if (needRaw && rawInvertible) rec.원점수 = String(result.raw);
-    if (needPct && result.percentile !== null) rec.백분위 = String(result.percentile);
-    if (needGrade && result.grade !== null) rec.등급 = String(result.grade);
+    const put = (f, v) => { rec[f] = String(v); est[f] = key; };
+    if (need.includes('원점수') && rawInvertible) put('원점수', result.raw);
+    if (need.includes('백분위') && result.percentile !== null) put('백분위', result.percentile);
+    if (need.includes('등급') && result.grade !== null) put('등급', result.grade);
   };
 
   students.forEach(s => {
@@ -1516,8 +1577,8 @@ async function loadEbsiGradeCuts() {
       });
 
       const html = await res.text();
-      const temp = document.createElement('div');
-      temp.innerHTML = html;
+      // 응답 HTML을 화면 문서가 아닌 별도 문서로 읽는다 (응답 안의 이미지·이벤트 속성이 실행되지 않도록)
+      const temp = new DOMParser().parseFromString(html, 'text/html').body;
 
       // 메인 과목 (국어, 수학, 영어, 한국사) 처리 - 1학년
       if (req.key === 'main') {
@@ -1878,56 +1939,113 @@ function resolveStudentGrade(record, scoreField, cuts) {
   return 9;
 }
 
-function getGradeDistByCut(parsed, subject, rawCuts, stdCuts) {
-  // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
-  if (window.uploadedFileExt === 'csv' && (window.csvTargetUseRecorded === true)) {
-    return getGradeDistByRecordedGrade(parsed, subject);
+// 대상/비교 파일별 분석 옵션 (확장자, CSV 옵션 토글)
+function gradingOptionsFor(side) {
+  if (side === 'compare') {
+    return {
+      ext: window.compareUploadedFileExt,
+      useRecorded: window.csvCompareUseRecorded === true,
+      stdKorMath: !!window.csvCompareUseStdKorMath,
+      stdExplore: !!window.csvCompareUseStdExplore
+    };
   }
+  return {
+    ext: window.uploadedFileExt,
+    useRecorded: window.csvTargetUseRecorded === true,
+    stdKorMath: !!window.csvTargetUseStdKorMath,
+    stdExplore: !!window.csvTargetUseStdExplore
+  };
+}
 
-  // 점수 타입 결정 (XLSX는 기본 표준, CSV는 옵션으로 표준 허용)
+// 과목별로 어떤 점수(원점수/표준점수)와 어떤 등급컷을 쓸지 정한다.
+// - XLSX(성적표 포함): 영어/한국사는 원점수, 나머지는 표준점수
+// - CSV: 영어/한국사는 원점수, 나머지는 옵션에 따라
+// - 고른 등급컷이 비어 있으면(실채점 이후 원점수 컷 삭제 등) 다른 쪽 등급컷으로 대체
+function pickGradingCuts(subject, rawCuts, stdCuts, side) {
+  const o = gradingOptionsFor(side);
   let cuts, scoreField;
-  const isXlsx = (window.uploadedFileExt === 'xlsx');
-  const isCsv = (window.uploadedFileExt === 'csv');
-  const csvUseStdKorMath = !!window.csvTargetUseStdKorMath;
-  const csvUseStdExplore = !!window.csvTargetUseStdExplore;
-
-  if (isXlsx) {
-    // XLSX: 영어/한국사는 원점수, 나머지는 표준점수 사용
-    if (subject === '영어' || subject === '한국사') {
-      cuts = rawCuts; scoreField = '원점수';
-    } else {
-      cuts = stdCuts; scoreField = '표준점수';
-    }
-  } else {
-    // CSV: 과목군별 옵션에 따라 표준점수 사용, 영어/한국사는 원점수 고정
-    if (subject === '영어' || subject === '한국사') { cuts = rawCuts; scoreField = '원점수'; }
-    else if ((subject === '국어' || subject === '수학') && isCsv && csvUseStdKorMath) { cuts = stdCuts; scoreField = '표준점수'; }
-    else if ((subject === '사회탐구' || subject === '과학탐구') && isCsv && csvUseStdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
-    else { cuts = rawCuts; scoreField = '원점수'; }
-  }
-
-  // 실채점 이후 원점수 등급컷이 삭제되는 등, 선택된 등급컷이 비어있으면
-  // 사용 가능한 다른 등급컷(원점수↔표준점수)으로 자동 대체
+  const absolute = (subject === '영어' || subject === '한국사');
+  if (absolute) { cuts = rawCuts; scoreField = '원점수'; }
+  else if (o.ext === 'xlsx') { cuts = stdCuts; scoreField = '표준점수'; }
+  else if ((subject === '국어' || subject === '수학') && o.ext === 'csv' && o.stdKorMath) { cuts = stdCuts; scoreField = '표준점수'; }
+  else if ((subject === '사회탐구' || subject === '과학탐구') && o.ext === 'csv' && o.stdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
+  else { cuts = rawCuts; scoreField = '원점수'; }
   if (!cutsAreUsable(cuts)) {
     const altCuts = (scoreField === '원점수') ? stdCuts : rawCuts;
     const altField = (scoreField === '원점수') ? '표준점수' : '원점수';
     if (cutsAreUsable(altCuts)) { cuts = altCuts; scoreField = altField; }
   }
+  return { cuts, scoreField };
+}
+
+// 대상/비교 쪽 등급컷. 비교 쪽 국어/수학은 비교 시험의 등급컷을 써야 한다
+// (표준점수는 시험마다 척도가 달라, 대상 시험 등급컷으로 매기면 등급이 틀어진다).
+// 영어/한국사는 절대평가라 컷이 같고, 탐구 비교 컷은 불러오지 않으므로 대상 컷을 쓴다.
+function cutsForSide(subject, side) {
+  const key = { '국어': 'korean', '수학': 'math', '영어': 'english', '한국사': 'history', '사회탐구': 'social', '과학탐구': 'science' }[subject];
+  const t = gradeCuts.target;
+  if (side === 'compare' && (key === 'korean' || key === 'math')) {
+    const c = gradeCuts.compare;
+    if (cutsAreUsable(c.std[key]) || cutsAreUsable(c.raw[key])) return [c.raw[key] || [], c.std[key] || []];
+  }
+  return [t.raw[key] || [], t.std[key] || []];
+}
+
+// 학생 한 명의 과목 등급 (화면·통계·내보내기가 모두 같은 규칙을 쓰도록 한 곳에 모음)
+function studentGradeFor(s, subject, side) {
+  const rec = s?.[subject];
+  const o = gradingOptionsFor(side);
+  if (o.ext === 'csv' && o.useRecorded) {
+    const g = Number(rec?.등급);
+    return (!isNaN(g) && g >= 1 && g <= 9) ? g : null;
+  }
+  const [rawCuts, stdCuts] = cutsForSide(subject, side);
+  const { cuts, scoreField } = pickGradingCuts(subject, rawCuts, stdCuts, side);
+  return resolveStudentGrade(rec, scoreField, cuts);
+}
+
+// 학생의 탐구 응시 과목 목록(탐구1·탐구2 순서). 성적표에 목록이 없으면 사회탐구/과학탐구 칸으로 만든다.
+// 사회 2과목처럼 같은 분류를 두 번 본 학생도 빠짐없이 합산하기 위해 학생 명단·내보내기가 함께 쓴다.
+function studentExploreEntries(s) {
+  if (Array.isArray(s?.탐구목록) && s.탐구목록.length) return s.탐구목록;
+  const out = [];
+  [['사회탐구', 'social'], ['과학탐구', 'science']].forEach(([k, cat]) => {
+    const r = s?.[k];
+    if (r && (String(r.표준점수 || '').trim() || String(r.원점수 || '').trim())) out.push({ ...r, 분류: cat });
+  });
+  return out;
+}
+
+// 탐구 과목 하나의 등급: 다른 화면과 같은 규칙(점수→등급컷, 과목별 등급컷 우선), 못 매기면 기록/변환표 등급
+function exploreEntryGrade(e, side) {
+  const cat = e.분류 === 'science' ? '과학탐구' : '사회탐구';
+  const o = gradingOptionsFor(side);
+  if (!(o.ext === 'csv' && o.useRecorded)) {
+    const [rawCuts, stdCuts] = cutsForSide(cat, side);
+    const { cuts, scoreField } = pickGradingCuts(cat, rawCuts, stdCuts, side);
+    const g = resolveStudentGrade(e, scoreField, cuts);
+    if (g !== null) return g;
+  }
+  const r = Number(e.등급);
+  return (String(e.등급 ?? '').trim() !== '' && r >= 1 && r <= 9) ? r : null;
+}
+
+function getGradeDistByCut(parsed, subject, rawCuts, stdCuts, side) {
+  const o = gradingOptionsFor(side);
+  // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
+  if (o.ext === 'csv' && o.useRecorded) return getGradeDistByRecordedGrade(parsed, subject);
+  const { cuts, scoreField } = pickGradingCuts(subject, rawCuts, stdCuts, side);
 
   let dist = Array(9).fill(0); // 1~9등급 인원수 배열
   let total = 0; // 총 인원수
-
   // 각 학생의 점수를 등급컷과 비교하여 등급 산출 (점수가 없고 기록된 등급만 있는 경우 그 등급을 사용)
   parsed.forEach(s => {
     const grade = resolveStudentGrade(s?.[subject], scoreField, cuts);
     if (grade === null) return; // 응시 정보 없음
-    dist[grade - 1]++; // 해당 등급 인원수 증가
-    total++; // 총 인원수 증가
+    dist[grade - 1]++;
+    total++;
   });
-
-  // 등급별 비율 계산 (백분율)
   const ratio = dist.map(n => total ? (n / total * 100).toFixed(2) : '0');
-
   return { dist, ratio, total };
 }
 
@@ -1966,53 +2084,12 @@ function getGradeDistByRecordedGrade(parsed, subject) {
  * @param {Array} stdCuts - 표준점수 등급컷 배열
  * @returns {Object} 1,2등급 인원수, 비율, 총인원 정보
  */
-function get12GradeByCut(parsed, subject, rawCuts, stdCuts) {
-  // CSV에서 '기록 등급 사용' 옵션이면 기록된 등급으로 집계
-  if (window.uploadedFileExt === 'csv' && (window.csvTargetUseRecorded === true)) {
-    return get12GradeByRecordedGrade(parsed, subject);
-  }
-
-  let cuts, scoreField;
-  const isXlsx = (window.uploadedFileExt === 'xlsx');
-  const isCsv = (window.uploadedFileExt === 'csv');
-  const csvUseStdKorMath = !!window.csvTargetUseStdKorMath;
-  const csvUseStdExplore = !!window.csvTargetUseStdExplore;
-
-  if (isXlsx) {
-    if (subject === '영어' || subject === '한국사') {
-      cuts = rawCuts; scoreField = '원점수';
-    } else {
-      cuts = stdCuts; scoreField = '표준점수';
-    }
-  } else {
-    if (subject === '영어' || subject === '한국사') { cuts = rawCuts; scoreField = '원점수'; }
-    else if ((subject === '국어' || subject === '수학') && isCsv && csvUseStdKorMath) { cuts = stdCuts; scoreField = '표준점수'; }
-    else if ((subject === '사회탐구' || subject === '과학탐구') && isCsv && csvUseStdExplore) { cuts = stdCuts; scoreField = '표준점수'; }
-    else { cuts = rawCuts; scoreField = '원점수'; }
-  }
-
-  // 실채점 이후 원점수 등급컷이 삭제되는 등, 선택된 등급컷이 비어있으면
-  // 사용 가능한 다른 등급컷(원점수↔표준점수)으로 자동 대체
-  if (!cutsAreUsable(cuts)) {
-    const altCuts = (scoreField === '원점수') ? stdCuts : rawCuts;
-    const altField = (scoreField === '원점수') ? '표준점수' : '원점수';
-    if (cutsAreUsable(altCuts)) { cuts = altCuts; scoreField = altField; }
-  }
-
-  let dist = Array(9).fill(0);
-  let total = 0;
-
-  // 등급 산출 및 집계 (점수가 없고 기록된 등급만 있는 경우 그 등급을 사용)
-  parsed.forEach(s => {
-    const grade = resolveStudentGrade(s?.[subject], scoreField, cuts);
-    if (grade === null) return; // 응시 정보 없음
-    dist[grade - 1]++;
-    total++;
-  });
-
+function get12GradeByCut(parsed, subject, rawCuts, stdCuts, side) {
+  const o = gradingOptionsFor(side);
+  if (o.ext === 'csv' && o.useRecorded) return get12GradeByRecordedGrade(parsed, subject);
+  const { dist, total } = getGradeDistByCut(parsed, subject, rawCuts, stdCuts, side);
   const cnt = dist[0] + dist[1]; // 1등급 + 2등급 인원수
   const ratio = total ? (cnt / total * 100).toFixed(2) : '0';
-
   return { cnt, ratio, total, sum: cnt + ' / ' + ratio };
 }
 
@@ -2340,31 +2417,20 @@ window.analyzeAll = async function () {
  * 비교 성적 분석 탭을 초기화하는 함수
  * 파일 업로드 UI와 각종 테이블들을 초기 상태로 설정
  */
-function resetCompareTab() {
-  renderEbsiCutLoaderUI(); // EBSi 등급컷 불러오기 UI 생성
-  renderCompareGradeTable(); // 등급컷 비교 테이블 초기화
-  renderCompareStatsTables(); // 통계 비교 테이블 초기화
-  renderGradeDistTable(); // 등급별 인원 비교 테이블 초기화
-  renderGrade12RatioTable(); // 1,2등급 비율 비교 테이블 초기화
-
-  // 비교 데이터 초기화
-  compareParsedData = [];
-  compareFileName = '';
-
-  // UI 요소들 초기화
-  const uploadInput = document.getElementById('compareUploadInput');
-  if (uploadInput) uploadInput.value = '';
-  const showBtn = document.getElementById('showCompareBtn');
-  if (showBtn) showBtn.disabled = true;
-  const result = document.getElementById('compareResult');
-  if (result) result.innerHTML = '';
-
-  // 학년 필터 드롭다운을 지금 시점의 parsedData 기준으로 다시 채운다.
-  // (이 탭 UI는 페이지 로드 시 딱 한 번만 만들어지는데, 그때는 아직 파일이 업로드되기 전이라
-  //  드롭다운이 비어있는 채로 굳어 있었다 — 탭을 열 때마다 매번 새로 채워야 한다)
-  window.compareTargetGrade = '';
-  window.compareCompareGrade = '';
+function refreshCompareTab() {
+  // 예전엔 이 탭을 누를 때마다 비교 파일을 지웠다. 이제는 UI만 준비하고, 올려둔 비교 파일이 있으면 결과를 다시 그린다.
+  if (!document.getElementById('ebsiCutLoader')) renderEbsiCutLoaderUI(); // EBSi 등급컷 불러오기 UI
   if (typeof updateCompareGradeFilters === 'function') updateCompareGradeFilters();
+  const showBtn = document.getElementById('showCompareBtn');
+  if (showBtn) showBtn.disabled = !compareParsedData.length;
+  if (compareParsedData.length) {
+    renderCompareResult();
+  } else {
+    renderCompareGradeTable();
+    renderCompareStatsTables();
+    renderGradeDistTable();
+    renderGrade12RatioTable();
+  }
 }
 
 /**
@@ -2411,11 +2477,9 @@ window.handleCompareFile = function (e) {
 
   if (ext === 'csv' || ext === 'txt') {
     try { window.compareUploadedFileExt = ext; } catch (e) { }
-    const reader = new FileReader();
-    reader.onload = async function (ev) {
+    readCsvFileText(file).then(async function (text) {
       try {
-        const text = ev.target.result;
-        const lines = text.trim().split('\n').map(row => row.split(','));
+        const lines = parseCsvText(text);
         compareParsedData = parseCsvRows(lines);
         // 비교 등급컷을 이미 불러와둔 상태라면(보통 등급컷을 먼저 불러오고 파일을 올리는 흐름),
         // 그 시험 정보로 원점수/백분위를 업로드 즉시 역산해서 채운다.
@@ -2431,8 +2495,7 @@ window.handleCompareFile = function (e) {
         document.getElementById('showCompareBtn').disabled = true;
         showMessage('CSV 파싱 중 오류가 발생했습니다.');
       }
-    };
-    reader.readAsText(file, 'euc-kr');
+    }).catch(err => showMessage('CSV 파일을 읽는 중 오류가 발생했습니다. ' + (err?.message || err)));
     return;
   }
 
@@ -2525,7 +2588,7 @@ async function renderCompareResult() {
     } catch (e) { /* 추정 실패는 무시 */ }
   }
 
-  document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${compareFileName}</div>`;
+  document.getElementById('compareResult').innerHTML = `<div class="mb-10"><b>비교 파일:</b> ${escapeHtml(compareFileName)}</div>`;
 
   // 각종 비교 테이블들 렌더링
   renderCompareGradeTable(); // 등급컷 비교 테이블
@@ -2665,8 +2728,8 @@ async function fetchCompareEbsiCuts() {
       body: form.toString()
     });
     const html = await res.text();
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
+    // 응답 HTML을 화면 문서가 아닌 별도 문서로 읽는다 (응답 안의 이미지·이벤트 속성이 실행되지 않도록)
+    const temp = new DOMParser().parseFromString(html, 'text/html').body;
 
     if (req.key === 'main' || req.key === 'g2_main') {
       // 1·2학년: 국어/수학이 각각 독립된 표준점수 등급컷 표로 나온다
@@ -2861,6 +2924,18 @@ function renderCompareStatsTables() {
   });
 }
 
+// 비교 탭의 등급 분포 / 1·2등급 비율 (대상·비교 각각 자기 시험의 등급컷과 자기 파일의 옵션으로 계산)
+function compareTabDist(side, subj) {
+  const data = side === 'compare' ? getCompareCompareData() : getCompareTargetData();
+  const [rawCuts, stdCuts] = cutsForSide(subj, side);
+  return getGradeDistByCut(data, subj, rawCuts, stdCuts, side);
+}
+function compareTab12(side, subj) {
+  const data = side === 'compare' ? getCompareCompareData() : getCompareTargetData();
+  const [rawCuts, stdCuts] = cutsForSide(subj, side);
+  return get12GradeByCut(data, subj, rawCuts, stdCuts, side);
+}
+
 /**
  * 비교 분석 등급별 인원 현황 테이블을 렌더링하는 함수
  */
@@ -2900,19 +2975,8 @@ function renderGradeDistTable() {
     html += `<tr><td>${g}등급</td>`;
     subjects.forEach(subj => {
       const subjKey = subjectMap[subj];
-      const base = getGradeDistByCut(getCompareTargetData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      let comp;
-      if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-        comp = getGradeDistByRecordedGrade(getCompareCompareData(), subj);
-      } else {
-        const prevExt = window.uploadedFileExt;
-        window.uploadedFileExt = window.compareUploadedFileExt;
-        try {
-          comp = getGradeDistByCut(getCompareCompareData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-        } finally {
-          window.uploadedFileExt = prevExt;
-        }
-      }
+      const base = compareTabDist('target', subj);
+      const comp = compareTabDist('compare', subj);
       html += `<td>${base.dist[g - 1] ?? '-'} / ${comp.dist[g - 1] ?? '-'}</td><td>${base.ratio[g - 1] ?? '-'} / ${comp.ratio[g - 1] ?? '-'}</td>`;
     });
     html += `</tr>`;
@@ -2952,27 +3016,14 @@ function renderGrade12RatioTable() {
 
   html += `<tr><td>인원 및 비율 (대상)</td>`;
   subjects.forEach(subj => {
-    const subjKey = subjectMap[subj];
-    const v = get12GradeByCut(getCompareTargetData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
+    const v = compareTab12('target', subj);
     html += `<td>${v.cnt} / ${v.ratio}</td>`;
   });
   html += `</tr>`;
 
   html += `<tr><td>인원 및 비율 (비교)</td>`;
   subjects.forEach(subj => {
-    let v;
-    if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-      v = get12GradeByRecordedGrade(getCompareCompareData(), subj);
-    } else {
-      const prevExt = window.uploadedFileExt;
-      window.uploadedFileExt = window.compareUploadedFileExt;
-      try {
-        const subjKey = subjectMap[subj];
-        v = get12GradeByCut(getCompareCompareData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      } finally {
-        window.uploadedFileExt = prevExt;
-      }
-    }
+    const v = compareTab12('compare', subj);
     html += `<td>${v.cnt} / ${v.ratio}</td>`;
   });
   html += `</tr>`;
@@ -3061,24 +3112,23 @@ function renderStudentList() {
     const kor = Number(s.국어?.표준점수 || 0);
     const math = Number(s.수학?.표준점수 || 0);
     const eng = Number(s.영어?.원점수 || 0);
-    const soc = Number(s.사회탐구?.표준점수 || 0);
-    const sci = Number(s.과학탐구?.표준점수 || 0);
-    // resolveStudentGrade: 점수가 없으면 파일에 기록된 등급을 쓴다
-    // (표준점수 기준 리포트는 영어/한국사 원점수 없이 등급만 있어서, 예전엔 영어 등급이 '-'가 되어
-    //  기본 필터(1~9등급)에 전원 걸러져 학생 명단이 텅 비었다)
-    const gradeOf = (rec, field, cuts) => resolveStudentGrade(rec, field, cuts) ?? '-';
-    const socGrade = gradeOf(s.사회탐구, '표준점수', gradeCuts.target.std.social);
-    const sciGrade = gradeOf(s.과학탐구, '표준점수', gradeCuts.target.std.science);
+    // 탐구는 응시한 두 과목을 모두 더한다 (예전엔 사회 2과목 응시자는 한 과목만 합산돼
+    // 결과 보고서의 성적 상위자 순위와 달라졌다)
+    const exps = studentExploreEntries(s);
+    const explore = exps.reduce((a, e) => a + (Number(toScore(e.표준점수)) || 0), 0);
+    // 등급은 전체 분석·성적 확인과 같은 규칙(studentGradeFor)으로 매긴다.
+    // 점수가 없으면 파일에 기록된 등급을 쓴다 (영어/한국사 등급만 있는 성적표 대응)
+    const gradeOf = (subj) => studentGradeFor(s, subj, 'target') ?? '-';
+    const exploreGrade = exps.map(e => exploreEntryGrade(e, 'target') ?? '-').join('·') || '-';
 
     return {
       ...s,
-      kor, math, eng, soc, sci,
-      sum: kor + math + soc + sci, // 표준점수 합계
-      explore: soc + sci, // 탐구 합계
-      korGrade: gradeOf(s.국어, '표준점수', gradeCuts.target.std.korean),
-      mathGrade: gradeOf(s.수학, '표준점수', gradeCuts.target.std.math),
-      engGrade: gradeOf(s.영어, '원점수', gradeCuts.target.raw.english),
-      exploreGrade: `${socGrade}${sciGrade}`
+      kor, math, eng, explore,
+      sum: kor + math + explore, // 표준점수 합계
+      korGrade: gradeOf('국어'),
+      mathGrade: gradeOf('수학'),
+      engGrade: gradeOf('영어'),
+      exploreGrade
     };
   });
 
@@ -3156,7 +3206,7 @@ function renderStudentList() {
       html += `<td class="no-copy">${s.학년}</td><td class="no-copy">${s.반}</td><td class="no-copy">${s.번호}</td>`;
     }
 
-    html += `<td class="no-copy">${s.이름}</td>
+    html += `<td class="no-copy">${escapeHtml(s.이름)}</td>
         <td>${s.kor}(${s.korGrade})</td>
         <td>${s.math}(${s.mathGrade})</td>
         <td>(${s.engGrade})</td>
@@ -3424,13 +3474,8 @@ function openComparisonChartModal() {
       cv.width = 360; cv.height = 260;
       div.appendChild(cv);
       grid1.appendChild(div);
-      const targetData = getGradeDistByCut(getCompareTargetData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      let compareData;
-      if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-        compareData = getGradeDistByRecordedGrade(getCompareCompareData(), subj);
-      } else {
-        compareData = getGradeDistByCut(getCompareCompareData(), subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      }
+      const targetData = compareTabDist('target', subj);
+      const compareData = compareTabDist('compare', subj);
       window.analysisChart.createComparisonBarChart(cv.id, targetData, compareData, subj);
     });
     // 표준점수 분포 비교
@@ -3472,12 +3517,8 @@ function openGrade12ChartModal() {
 
     subjects.forEach(subj => {
       const subjKey = subjectMap[subj];
-      targetData[subjKey] = get12GradeByCut(parsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      if (window.compareUploadedFileExt === 'csv' && window.csvCompareUseRecorded === true) {
-        compareData[subjKey] = get12GradeByRecordedGrade(compareParsedData, subj);
-      } else {
-        compareData[subjKey] = get12GradeByCut(compareParsedData, subj, gradeCuts.target.raw[subjKey], gradeCuts.target.std[subjKey]);
-      }
+      targetData[subjKey] = compareTab12('target', subj);
+      compareData[subjKey] = compareTab12('compare', subj);
     });
 
     const div = document.createElement('div');
@@ -3874,13 +3915,6 @@ function openExploreCdfModal(scoreType) {
   });
 }
 
-// ------------------- 페이지 로드 시 자동 초기화 -------------------
-// DOM이 완전히 로드된 후 탭 UI 초기화 실행
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  setTimeout(window.initAnalyzeTabs, 0);
-} else {
-  window.addEventListener('DOMContentLoaded', window.initAnalyzeTabs);
-}
 
 // ------------------- 과목 조합 통계 유틸 (중복 선언 방지)
 if (typeof comboScoreType === 'undefined') {

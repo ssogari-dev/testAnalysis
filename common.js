@@ -25,6 +25,11 @@ function showSection(id) {
         updateClassDropdown();
       }
     }
+    // 성적 분석: 들어올 때마다 지금 데이터·등급컷으로 현재 탭을 다시 그린다
+    // (예전엔 페이지를 처음 열 때 빈 데이터로 한 번 그린 결과가, 탭 버튼을 누르기 전까지 남아 있었다)
+    if (id === 'analyze' && ready && typeof switchAnalyzeTab === 'function' && document.getElementById('analyzeTabBtn_all')) {
+      switchAnalyzeTab(typeof analyzeTab !== 'undefined' ? analyzeTab : 'all');
+    }
     updateStepIndicator();
   }
 
@@ -183,25 +188,83 @@ function showSection(id) {
     };
   }
   
+  // CSV 파일 읽기: UTF-8로 먼저 읽어보고, 깨지면 EUC-KR(학교 프로그램 기본)로 읽는다.
+  // (예전엔 항상 EUC-KR로 읽어 UTF-8로 저장된 CSV는 한글이 깨졌다)
+  function readCsvFileText(file) {
+    return file.arrayBuffer().then(buf => {
+      let text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e) { text = new TextDecoder('euc-kr').decode(buf); }
+      return text.replace(/^﻿/, '');
+    });
+  }
+
+  // CSV 텍스트 → 2차원 배열. 따옴표로 감싼 칸 안의 쉼표·줄바꿈, 두 번 쓴 따옴표("")를 처리한다.
+  function parseCsvText(text) {
+    const rows = [];
+    let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+        else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(c => String(c).trim() !== ''));
+  }
+
+  // 파일에서 읽은 글자(이름, 파일명 등)를 화면 HTML에 넣을 때 태그로 해석되지 않도록 바꾼다
+  function escapeHtml(v) {
+    return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // '데이터 복사' 버튼: 표 본문(.no-copy 열 제외)을 클립보드에 복사한다.
+  // 한글/엑셀에 붙여넣으면 표로 들어가도록 HTML과 탭 구분 텍스트를 함께 넣는다.
+  // (예전엔 HTML 문자열을 만들어 돌려주기만 하고 실제로 복사하지 않아 버튼이 아무 일도 안 했다)
   function copyTableBodyAsHtml(tableId) {
     const table = document.getElementById(tableId);
     if (!table) return '';
 
     const rows = table.querySelectorAll('tbody tr');
     let html = '';
+    const lines = [];
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         let rowHtml = '<tr>';
+        const cells = [];
         for (let j = 0; j < row.children.length; j++) {
             const cell = row.children[j];
             // 복사 대상이 아닌 경우에만 포함
             if (!cell.classList.contains('no-copy')) {
                 rowHtml += '<td>' + cell.innerHTML + '</td>';
+                cells.push((cell.innerText || cell.textContent || '').replace(/\s*\n\s*/g, ' ').trim());
             }
         }
         rowHtml += '</tr>';
         html += rowHtml;
+        lines.push(cells.join('\t'));
     }
+    const text = lines.join('\n');
+    const done = () => { if (typeof showToast === 'function') showToast(`표 ${rows.length}행을 복사했습니다.`); };
+    const fail = () => { if (typeof showMessage === 'function') showMessage('데이터 복사에 실패했습니다. 표를 직접 드래그해서 복사해주세요.'); };
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob(['<table>' + html + '</table>'], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' })
+        })]).then(done, () => navigator.clipboard.writeText(text).then(done, fail));
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(done, fail);
+      } else {
+        fail();
+      }
+    } catch (e) { fail(); }
     return html;
   }
 

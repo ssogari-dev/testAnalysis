@@ -993,6 +993,15 @@
     background: var(--primary-dark);
     transform: translateY(-1px);
   }
+  .upload-next-btn.upload-next-secondary {
+    background: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    margin-left: 6px;
+  }
+  .upload-next-btn.upload-next-secondary:hover { background: #f1f5f9; }
+  .upload-summary-note { margin-top: 4px; font-size: 0.88rem; color: var(--subtle-text-color); }
+  .upload-summary-note strong { color: var(--warning-color); }
 
   /* 업로드 성공 애니메이션 */
   .upload-box.upload-success {

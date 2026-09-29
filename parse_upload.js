@@ -32,21 +32,21 @@ window.parseFile = function() {
     return;
   }
   const ext = file.name.split('.').pop().toLowerCase();
+  window.uploadedIsStdReport = false; // 표준점수 성적표면 해당 파서에서 다시 true로 바꾼다
   // 업로드 확장자 전역 저장 (.xls는 xlsx와 동일한 파싱 로직을 사용하므로 내부적으로 'xlsx'로 통일)
   try { window.uploadedFileExt = (ext === 'xls') ? 'xlsx' : ext; } catch(e) {}
   if (ext === 'csv' || ext === 'txt') {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const text = e.target.result;
-      const lines = text.trim().split('\n').map(row => row.split(','));
+    window.uploadedIsStdReport = false;
+    readCsvFileText(file).then(text => {
+      const lines = parseCsvText(text);
       csvData = lines;
       parsedData = parseCsvRows(lines); // 임시 저장
       displayParsedTable(parsedData);
       renderUploadSummary(parsedData, file.name);
       showToast('CSV 파일이 업로드 및 파싱되었습니다.');
-      hideLoading();
-    };
-    reader.readAsText(file, 'euc-kr');
+    }).catch(err => {
+      showMessage('CSV 파싱 중 오류가 발생했습니다. ' + (err?.message || err));
+    }).finally(hideLoading);
   } else if (ext === 'xlsx' || ext === 'xls') {
     // 실제 이진 XLSX/XLS 파일인지, EUC-KR HTML로 저장된 "성적표"(예: 교육청 [표준점수 기준] 리포트)인지
     // 먼저 파일 앞부분 바이트를 확인해서 분기한다.
@@ -347,7 +347,7 @@ function displayParsedTable(data) {
   html += '</thead><tbody>';
   data.forEach(row => {
     html += '<tr>';
-    html += `<td class="no-copy">${row.학년}</td><td class="no-copy">${row.반}</td><td class="no-copy">${row.번호}</td><td class="no-copy">${row.이름}</td>`;
+    html += `<td class="no-copy">${row.학년}</td><td class="no-copy">${row.반}</td><td class="no-copy">${row.번호}</td><td class="no-copy">${escapeHtml(row.이름)}</td>`;
     html += `<td>${row.국어.원점수}</td><td>${row.국어.표준점수}</td><td>${row.국어.백분위}</td>`;
     html += `<td>${row.수학.원점수}</td><td>${row.수학.표준점수}</td><td>${row.수학.백분위}</td>`;
     html += `<td>${row.영어.원점수 || (row.영어.등급 ? row.영어.등급 + '등급' : '')}</td>`;
@@ -374,21 +374,29 @@ function renderUploadSummary(data, fileName) {
 
   card.classList.remove('hidden');
   if (hasGradeCuts) {
+    // 이미 불러온 등급컷이 있으면 그 시험 기준으로 분석한다. 다른 시험 파일일 수도 있으니
+    // 어떤 시험의 등급컷인지 보여주고, 학년이 다르면 경고한다 (예전엔 아무 확인 없이 바로 분석했다)
+    const ex = window.__lastEbsiExam;
+    const cutLabel = ex ? `${ex.year}년 ${ex.gradeVal ? ex.gradeVal + '학년 ' : ''}${ex.examText || ''}`.trim() : '직접 입력한 등급컷';
+    const gradeMismatch = ex && ex.gradeVal && grades.length && !grades.includes(String(ex.gradeVal));
     card.innerHTML = `
       <div class="upload-summary-info">
-        <strong>${fileName}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
+        <strong>${escapeHtml(fileName)}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
+        <div class="upload-summary-note">현재 등급컷: ${escapeHtml(cutLabel)}${gradeMismatch ? ' — <strong>파일 학년과 다릅니다. 다른 시험이면 등급컷을 다시 불러오세요.</strong>' : ''}</div>
       </div>
       <button class="upload-next-btn" onclick="showSection('analyze')">
         바로 분석하러 가기
       </button>
+      <button class="upload-next-btn upload-next-secondary" onclick="showSection('cut')">
+        등급컷 다시 불러오기
+      </button>
     `;
-    // 이미 등급컷이 있으므로 자동으로 분석 화면까지 진행 (최신 데이터로 다시 렌더링)
-    if (typeof showSection === 'function') showSection('analyze');
-    if (typeof window.initAnalyzeTabs === 'function') window.initAnalyzeTabs();
+    // 학년이 맞을 때만 자동으로 분석 화면까지 진행
+    if (!gradeMismatch && typeof showSection === 'function') showSection('analyze');
   } else {
     card.innerHTML = `
       <div class="upload-summary-info">
-        <strong>${fileName}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
+        <strong>${escapeHtml(fileName)}</strong> &mdash; ${data.length}명 (${gradeText || '학년 정보 없음'})
       </div>
       <button class="upload-next-btn" onclick="showSection('cut')">
         등급컷 입력하러 가기
@@ -435,7 +443,7 @@ function displayCompareTable(data) {
   html += '</thead><tbody>';
   data.forEach(row => {
     html += '<tr>';
-    html += `<td class="no-copy">${row.학년}</td><td class="no-copy">${row.반}</td><td class="no-copy">${row.번호}</td><td class="no-copy">${row.이름}</td>`;
+    html += `<td class="no-copy">${row.학년}</td><td class="no-copy">${row.반}</td><td class="no-copy">${row.번호}</td><td class="no-copy">${escapeHtml(row.이름)}</td>`;
     html += `<td>${row.국어.원점수}</td><td>${row.국어.표준점수}</td><td>${row.국어.백분위}</td>`;
     html += `<td>${row.수학.원점수}</td><td>${row.수학.표준점수}</td><td>${row.수학.백분위}</td>`;
     html += `<td>${row.영어.원점수}</td>`;

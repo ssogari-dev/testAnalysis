@@ -132,7 +132,7 @@ function updateClassDropdown() {
         const hisCuts = gradeCuts.target.raw.history;
         html += '<tr>';
         html += `<td class="no-copy">${s.반}</td>`;
-        html += `<td class="no-copy">${s.번호}</td><td class="no-copy">${s.이름}</td>`;
+        html += `<td class="no-copy">${s.번호}</td><td class="no-copy">${escapeHtml(s.이름)}</td>`;
         // 기록 등급 사용 토글이 켜져 있고 CSV인 경우, 등급 칸에는 기록된 등급 표시
         const useRecorded = (window.uploadedFileExt === 'csv' && window.csvTargetUseRecorded === true);
         // resolveStudentGrade: 점수가 없어도 기록된 등급(예: 영어/한국사 "N등급" 텍스트)이 있으면 그걸 사용한다

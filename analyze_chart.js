@@ -450,7 +450,10 @@ AnalysisChart.prototype.renderAdvHeatmap = function (container, data) {
     const classCount = {};
     data.forEach(s => {
       const cls = s.반;
-      const grade = Number(s[subjectName]?.등급 ?? NaN);
+      // 파일에 등급 칸이 없는 경우가 많아(표준점수 성적표·XLSX), 다른 화면과 같은 규칙으로 등급을 매긴다
+      const grade = (typeof studentGradeFor === 'function')
+        ? (studentGradeFor(s, subjectName, 'target') ?? NaN)
+        : Number(s[subjectName]?.등급 ?? NaN);
       if (cls && !isNaN(grade) && grade >= 1 && grade <= 9) {
         if (!classCount[cls]) classCount[cls] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, total: 0 };
         classCount[cls][grade]++;
